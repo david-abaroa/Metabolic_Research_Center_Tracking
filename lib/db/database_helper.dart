@@ -18,7 +18,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'timeline.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE entries (
@@ -30,7 +30,8 @@ class DatabaseHelper {
             veggie_name TEXT,
             veggie_grams REAL,
             exercise_description TEXT,
-            exercise_minutes INTEGER
+            exercise_minutes INTEGER,
+            water_oz REAL
           )
         ''');
         await db.execute('''
@@ -46,6 +47,11 @@ class DatabaseHelper {
           )
         ''');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE entries ADD COLUMN water_oz REAL');
+        }
+      },
     );
   }
 
@@ -53,6 +59,12 @@ class DatabaseHelper {
     final db = await database;
     final map = entry.toMap()..remove('id');
     return db.insert('entries', map);
+  }
+
+  Future<int> updateEntry(TimelineEntry entry) async {
+    final db = await database;
+    final map = entry.toMap()..remove('id');
+    return db.update('entries', map, where: 'id = ?', whereArgs: [entry.id]);
   }
 
   Future<List<TimelineEntry>> entriesForDay(DateTime day) async {
@@ -71,6 +83,21 @@ class DatabaseHelper {
   Future<int> deleteEntry(int id) async {
     final db = await database;
     return db.delete('entries', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Most recent 'bed' entry strictly before [time] — used to estimate sleep
+  /// duration even when bed time fell on the previous day.
+  Future<TimelineEntry?> mostRecentBedBefore(DateTime time) async {
+    final db = await database;
+    final rows = await db.query(
+      'entries',
+      where: 'type = ? AND timestamp < ?',
+      whereArgs: [EntryType.bed.name, time.toIso8601String()],
+      orderBy: 'timestamp DESC',
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return TimelineEntry.fromMap(rows.first);
   }
 
   Future<void> addProteinOption(String name) async {

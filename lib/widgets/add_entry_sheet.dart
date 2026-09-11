@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
 import '../models/timeline_entry.dart';
+import '../utils/units.dart';
+import 'dual_unit_field.dart';
 
 Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved) async {
   await showModalBottomSheet(
@@ -31,6 +33,10 @@ Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved) async
               Navigator.pop(ctx);
               await _showExerciseForm(context, onSaved);
             }),
+            _optionTile(ctx, Icons.water_drop, Colors.cyan, 'Water', () async {
+              Navigator.pop(ctx);
+              await _showWaterForm(context, onSaved);
+            }),
             _optionTile(ctx, Icons.bedtime, Colors.indigo, 'Bed time', () async {
               Navigator.pop(ctx);
               await _quickAdd(context, EntryType.bed, onSaved);
@@ -40,6 +46,28 @@ Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved) async
       );
     },
   );
+}
+
+/// Opens the right form, pre-filled, to view/edit an existing entry.
+Future<void> showEntryDetailSheet(
+    BuildContext context, TimelineEntry entry, VoidCallback onSaved) async {
+  switch (entry.type) {
+    case EntryType.meal:
+      await _showMealForm(context, onSaved, existing: entry);
+      return;
+    case EntryType.exercise:
+      await _showExerciseForm(context, onSaved, existing: entry);
+      return;
+    case EntryType.water:
+      await _showWaterForm(context, onSaved, existing: entry);
+      return;
+    case EntryType.wake:
+    case EntryType.proteinDrink:
+    case EntryType.proteinBar:
+    case EntryType.bed:
+      await _showSimpleEditForm(context, entry, onSaved);
+      return;
+  }
 }
 
 Widget _optionTile(
@@ -52,14 +80,21 @@ Widget _optionTile(
   );
 }
 
-Future<TimeOfDay?> _pickTime(BuildContext context) {
-  final now = TimeOfDay.now();
-  return showTimePicker(context: context, initialTime: now);
+Future<TimeOfDay?> _pickTime(BuildContext context, {TimeOfDay? initial}) {
+  return showTimePicker(
+      context: context, initialTime: initial ?? TimeOfDay.now());
 }
 
-DateTime _combineToday(TimeOfDay t) {
-  final now = DateTime.now();
-  return DateTime(now.year, now.month, now.day, t.hour, t.minute);
+DateTime _combineToday(TimeOfDay t, {DateTime? day}) {
+  final base = day ?? DateTime.now();
+  return DateTime(base.year, base.month, base.day, t.hour, t.minute);
+}
+
+Future<void> _deleteAndClose(
+    BuildContext sheetCtx, int id, VoidCallback onSaved) async {
+  await DatabaseHelper.instance.deleteEntry(id);
+  onSaved();
+  Navigator.pop(sheetCtx);
 }
 
 Future<void> _quickAdd(
@@ -71,19 +106,198 @@ Future<void> _quickAdd(
   onSaved();
 }
 
-Future<void> _showMealForm(BuildContext context, VoidCallback onSaved) async {
+/// Time-only edit sheet for wake / protein drink / protein bar / bed time.
+Future<void> _showSimpleEditForm(
+    BuildContext context, TimelineEntry entry, VoidCallback onSaved) async {
+  TimeOfDay time = TimeOfDay.fromDateTime(entry.timestamp);
+  await showModalBottomSheet(
+    context: context,
+    builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, setState) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Edit entry', style: Theme.of(ctx).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('Time: ${time.format(ctx)}'),
+                  trailing: const Icon(Icons.access_time),
+                  onTap: () async {
+                    final t = await _pickTime(context, initial: time);
+                    if (t != null) setState(() => time = t);
+                  },
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Delete'),
+                        onPressed: () =>
+                            _deleteAndClose(ctx, entry.id!, onSaved),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () async {
+                          await DatabaseHelper.instance.updateEntry(
+                            entry.copyWith(timestamp: _combineToday(time)),
+                          );
+                          onSaved();
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Save'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      });
+    },
+  );
+}
+
+Future<void> _showWaterForm(BuildContext context, VoidCallback onSaved,
+    {TimelineEntry? existing}) async {
+  TimeOfDay time = existing != null
+      ? TimeOfDay.fromDateTime(existing.timestamp)
+      : TimeOfDay.now();
+  final ozCtrl = TextEditingController(
+      text: existing?.waterOz != null ? existing!.waterOz!.toStringAsFixed(1) : '');
+
+  Future<void> save(double? oz) async {
+    if (oz == null || oz <= 0) return;
+    if (existing == null) {
+      await DatabaseHelper.instance.insertEntry(
+        TimelineEntry(
+          type: EntryType.water,
+          timestamp: _combineToday(time),
+          waterOz: oz,
+        ),
+      );
+    } else {
+      await DatabaseHelper.instance.updateEntry(
+        existing.copyWith(timestamp: _combineToday(time), waterOz: oz),
+      );
+    }
+    onSaved();
+  }
+
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, setState) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(existing == null ? 'Add water' : 'Edit water',
+                  style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Time: ${time.format(ctx)}'),
+                trailing: const Icon(Icons.access_time),
+                onTap: () async {
+                  final t = await _pickTime(context, initial: time);
+                  if (t != null) setState(() => time = t);
+                },
+              ),
+              if (existing == null) ...[
+                const SizedBox(height: 8),
+                FilledButton.tonalIcon(
+                  icon: const Icon(Icons.local_drink),
+                  label: Text('Quick bottle (${waterBottleOz.toStringAsFixed(1)} fl oz)'),
+                  onPressed: () async {
+                    await save(waterBottleOz);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                ),
+                const SizedBox(height: 8),
+                const Text('— or enter a custom amount —',
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 8),
+              ] else
+                const SizedBox(height: 12),
+              TextField(
+                controller: ozCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Fluid ounces'),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  if (existing != null) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Delete'),
+                        onPressed: () =>
+                            _deleteAndClose(ctx, existing.id!, onSaved),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        await save(double.tryParse(ozCtrl.text));
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      });
+    },
+  );
+}
+
+Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
+    {TimelineEntry? existing}) async {
   final proteinOptions = await DatabaseHelper.instance.proteinOptions();
   final veggieOptions = await DatabaseHelper.instance.veggieOptions();
-  TimeOfDay time = TimeOfDay.now();
-  String? protein;
-  String? veggie;
-  final proteinGramsCtrl = TextEditingController();
-  final veggieGramsCtrl = TextEditingController();
+  TimeOfDay time = existing != null
+      ? TimeOfDay.fromDateTime(existing.timestamp)
+      : TimeOfDay.now();
+  String? protein = existing?.proteinName;
+  String? veggie = existing?.veggieName;
+  double? proteinGrams = existing?.proteinGrams;
+  double? veggieGrams = existing?.veggieGrams;
   final newProteinCtrl = TextEditingController();
   final newVeggieCtrl = TextEditingController();
-  bool addingNewProtein = false;
-  bool addingNewVeggie = false;
+  bool addingNewProtein = existing != null &&
+      existing.proteinName != null &&
+      !proteinOptions.contains(existing.proteinName);
+  bool addingNewVeggie = existing != null &&
+      existing.veggieName != null &&
+      !veggieOptions.contains(existing.veggieName);
+  if (addingNewProtein) newProteinCtrl.text = existing.proteinName ?? '';
+  if (addingNewVeggie) newVeggieCtrl.text = existing.veggieName ?? '';
 
+  if (!context.mounted) return;
   await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -100,14 +314,15 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved) async {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Add meal', style: Theme.of(ctx).textTheme.titleLarge),
+                Text(existing == null ? 'Add meal' : 'Edit meal',
+                    style: Theme.of(ctx).textTheme.titleLarge),
                 const SizedBox(height: 12),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text('Time: ${time.format(ctx)}'),
                   trailing: const Icon(Icons.access_time),
                   onTap: () async {
-                    final t = await _pickTime(context);
+                    final t = await _pickTime(context, initial: time);
                     if (t != null) setState(() => time = t);
                   },
                 ),
@@ -143,10 +358,10 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved) async {
                     ),
                   ),
                 const SizedBox(height: 8),
-                TextField(
-                  controller: proteinGramsCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Protein grams'),
+                DualUnitField(
+                  label: 'Protein',
+                  initialGrams: proteinGrams,
+                  onGramsChanged: (g) => proteinGrams = g,
                 ),
                 const SizedBox(height: 16),
                 if (!addingNewVeggie)
@@ -180,39 +395,66 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved) async {
                     ),
                   ),
                 const SizedBox(height: 8),
-                TextField(
-                  controller: veggieGramsCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Veggie grams'),
+                DualUnitField(
+                  label: 'Veggies',
+                  initialGrams: veggieGrams,
+                  onGramsChanged: (g) => veggieGrams = g,
                 ),
                 const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: () async {
-                    final proteinName =
-                        addingNewProtein ? newProteinCtrl.text.trim() : protein;
-                    final veggieName =
-                        addingNewVeggie ? newVeggieCtrl.text.trim() : veggie;
-                    if (proteinName != null && proteinName.isNotEmpty) {
-                      await DatabaseHelper.instance.addProteinOption(proteinName);
-                    }
-                    if (veggieName != null && veggieName.isNotEmpty) {
-                      await DatabaseHelper.instance.addVeggieOption(veggieName);
-                    }
-                    final entry = TimelineEntry(
-                      type: EntryType.meal,
-                      timestamp: _combineToday(time),
-                      proteinName:
-                          (proteinName?.isNotEmpty ?? false) ? proteinName : null,
-                      proteinGrams: double.tryParse(proteinGramsCtrl.text),
-                      veggieName:
-                          (veggieName?.isNotEmpty ?? false) ? veggieName : null,
-                      veggieGrams: double.tryParse(veggieGramsCtrl.text),
-                    );
-                    await DatabaseHelper.instance.insertEntry(entry);
-                    onSaved();
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('Save meal'),
+                Row(
+                  children: [
+                    if (existing != null) ...[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Delete'),
+                          onPressed: () =>
+                              _deleteAndClose(ctx, existing.id!, onSaved),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () async {
+                          final proteinName = addingNewProtein
+                              ? newProteinCtrl.text.trim()
+                              : protein;
+                          final veggieName =
+                              addingNewVeggie ? newVeggieCtrl.text.trim() : veggie;
+                          if (proteinName != null && proteinName.isNotEmpty) {
+                            await DatabaseHelper.instance
+                                .addProteinOption(proteinName);
+                          }
+                          if (veggieName != null && veggieName.isNotEmpty) {
+                            await DatabaseHelper.instance
+                                .addVeggieOption(veggieName);
+                          }
+                          final entry = TimelineEntry(
+                            id: existing?.id,
+                            type: EntryType.meal,
+                            timestamp: _combineToday(time),
+                            proteinName: (proteinName?.isNotEmpty ?? false)
+                                ? proteinName
+                                : null,
+                            proteinGrams: proteinGrams,
+                            veggieName: (veggieName?.isNotEmpty ?? false)
+                                ? veggieName
+                                : null,
+                            veggieGrams: veggieGrams,
+                          );
+                          if (existing == null) {
+                            await DatabaseHelper.instance.insertEntry(entry);
+                          } else {
+                            await DatabaseHelper.instance.updateEntry(entry);
+                          }
+                          onSaved();
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Save meal'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -223,10 +465,14 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved) async {
   );
 }
 
-Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved) async {
-  TimeOfDay time = TimeOfDay.now();
-  final descCtrl = TextEditingController();
-  final minutesCtrl = TextEditingController();
+Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved,
+    {TimelineEntry? existing}) async {
+  TimeOfDay time = existing != null
+      ? TimeOfDay.fromDateTime(existing.timestamp)
+      : TimeOfDay.now();
+  final descCtrl = TextEditingController(text: existing?.exerciseDescription ?? '');
+  final minutesCtrl =
+      TextEditingController(text: existing?.exerciseMinutes?.toString() ?? '');
 
   await showModalBottomSheet(
     context: context,
@@ -244,14 +490,15 @@ Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved) async
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Add exercise', style: Theme.of(ctx).textTheme.titleLarge),
+              Text(existing == null ? 'Add exercise' : 'Edit exercise',
+                  style: Theme.of(ctx).textTheme.titleLarge),
               const SizedBox(height: 12),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text('Time: ${time.format(ctx)}'),
                 trailing: const Icon(Icons.access_time),
                 onTap: () async {
-                  final t = await _pickTime(context);
+                  final t = await _pickTime(context, initial: time);
                   if (t != null) setState(() => time = t);
                 },
               ),
@@ -267,20 +514,43 @@ Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved) async
                 decoration: const InputDecoration(labelText: 'Duration (minutes)'),
               ),
               const SizedBox(height: 20),
-              FilledButton(
-                onPressed: () async {
-                  final entry = TimelineEntry(
-                    type: EntryType.exercise,
-                    timestamp: _combineToday(time),
-                    exerciseDescription:
-                        descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
-                    exerciseMinutes: int.tryParse(minutesCtrl.text),
-                  );
-                  await DatabaseHelper.instance.insertEntry(entry);
-                  onSaved();
-                  Navigator.pop(ctx);
-                },
-                child: const Text('Save exercise'),
+              Row(
+                children: [
+                  if (existing != null) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Delete'),
+                        onPressed: () =>
+                            _deleteAndClose(ctx, existing.id!, onSaved),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        final entry = TimelineEntry(
+                          id: existing?.id,
+                          type: EntryType.exercise,
+                          timestamp: _combineToday(time),
+                          exerciseDescription: descCtrl.text.trim().isEmpty
+                              ? null
+                              : descCtrl.text.trim(),
+                          exerciseMinutes: int.tryParse(minutesCtrl.text),
+                        );
+                        if (existing == null) {
+                          await DatabaseHelper.instance.insertEntry(entry);
+                        } else {
+                          await DatabaseHelper.instance.updateEntry(entry);
+                        }
+                        onSaved();
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Save exercise'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

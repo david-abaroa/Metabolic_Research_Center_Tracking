@@ -1,4 +1,4 @@
-enum EntryType { wake, proteinDrink, proteinBar, meal, exercise, bed }
+enum EntryType { wake, proteinDrink, proteinBar, meal, exercise, bed, water }
 
 class TimelineEntry {
   final int? id;
@@ -15,6 +15,9 @@ class TimelineEntry {
   final String? exerciseDescription;
   final int? exerciseMinutes;
 
+  // Water-specific
+  final double? waterOz;
+
   TimelineEntry({
     this.id,
     required this.type,
@@ -25,7 +28,41 @@ class TimelineEntry {
     this.veggieGrams,
     this.exerciseDescription,
     this.exerciseMinutes,
+    this.waterOz,
   });
+
+  /// True for entry types after which there's an optimal 3-4hr window to
+  /// have a follow-up meal or protein.
+  bool get startsOptimalWindow =>
+      type == EntryType.meal ||
+      type == EntryType.proteinDrink ||
+      type == EntryType.proteinBar;
+
+  TimelineEntry copyWith({
+    int? id,
+    EntryType? type,
+    DateTime? timestamp,
+    String? proteinName,
+    double? proteinGrams,
+    String? veggieName,
+    double? veggieGrams,
+    String? exerciseDescription,
+    int? exerciseMinutes,
+    double? waterOz,
+  }) {
+    return TimelineEntry(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      timestamp: timestamp ?? this.timestamp,
+      proteinName: proteinName ?? this.proteinName,
+      proteinGrams: proteinGrams ?? this.proteinGrams,
+      veggieName: veggieName ?? this.veggieName,
+      veggieGrams: veggieGrams ?? this.veggieGrams,
+      exerciseDescription: exerciseDescription ?? this.exerciseDescription,
+      exerciseMinutes: exerciseMinutes ?? this.exerciseMinutes,
+      waterOz: waterOz ?? this.waterOz,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -38,6 +75,7 @@ class TimelineEntry {
       'veggie_grams': veggieGrams,
       'exercise_description': exerciseDescription,
       'exercise_minutes': exerciseMinutes,
+      'water_oz': waterOz,
     };
   }
 
@@ -52,6 +90,7 @@ class TimelineEntry {
       veggieGrams: (map['veggie_grams'] as num?)?.toDouble(),
       exerciseDescription: map['exercise_description'] as String?,
       exerciseMinutes: map['exercise_minutes'] as int?,
+      waterOz: (map['water_oz'] as num?)?.toDouble(),
     );
   }
 }
