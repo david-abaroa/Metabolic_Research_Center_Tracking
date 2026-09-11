@@ -62,10 +62,18 @@ connection: `flutter build apk --release`, then install the file at
   day (same stats, tap to jump to that day) with a star badge — filled if
   tirzepatide was taken that day, circled if GAC was also taken
 - `lib/screens/week_timeline_view.dart` — the 7 days stacked as
-  horizontal mini-timelines aligned by time of day (hour labels every 3h,
-  vertical dotted gridlines, a "now" line on today's row). Each entry is
-  a small colored dot (tap to open/edit it); tapping elsewhere on a row
-  jumps to the day view for that date
+  horizontal mini-timelines aligned by time of day, horizontally
+  scrollable across the full 24h but opening scrolled to a 6am-11pm
+  focus window (hour labels every 3h, vertical dotted gridlines, a "now"
+  line on today's row). Each entry (other than tirzepatide/GAC, which
+  show as the star/circle badge next to the date instead) is the same
+  small colored icon used in the day view — tap one to open/edit it;
+  tapping elsewhere on a row jumps to the day view for that date. A key
+  at the bottom labels every icon plus the star/circle badge
+- `lib/widgets/tirz_gac_badge.dart` — `TirzGacBadge`, the small star
+  (filled if tirzepatide was taken, outlined otherwise) circled in teal
+  if GAC was also taken; shared by the week summary and week timeline
+  views
 - `lib/widgets/timeline_painter.dart` — the `CustomPainter` that draws the
   dotted hourly gridlines and the shaded "optimal window" bands (3-4 hours
   after any meal/protein entry — a rough follow-up-meal timing cue)

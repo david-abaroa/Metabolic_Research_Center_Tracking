@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../db/database_helper.dart';
+import '../widgets/tirz_gac_badge.dart';
 import 'summary_screen.dart';
 
 /// A 7-day breakdown (Monday-start week), plus a totals card for the week
@@ -150,7 +151,8 @@ class _WeekSummaryViewState extends State<WeekSummaryView> {
                         style: Theme.of(context).textTheme.bodySmall),
                   ],
                   const Spacer(),
-                  _badge(s),
+                  TirzGacBadge(
+                      tookTirzepatide: s.tookTirzepatide, tookGac: s.tookGac),
                 ],
               ),
               const SizedBox(height: 8),
@@ -175,25 +177,6 @@ class _WeekSummaryViewState extends State<WeekSummaryView> {
           ),
         ),
       ),
-    );
-  }
-
-  /// A filled star if tirzepatide was taken that day (outline otherwise),
-  /// wrapped in a small circle border if GAC was also taken.
-  Widget _badge(DaySummary s) {
-    final star = Icon(
-      s.tookTirzepatide ? Icons.star : Icons.star_border,
-      color: s.tookTirzepatide ? Colors.amber : Colors.grey.shade400,
-      size: 22,
-    );
-    if (!s.tookGac) return star;
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.teal, width: 2),
-      ),
-      child: star,
     );
   }
 
