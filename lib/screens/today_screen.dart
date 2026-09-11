@@ -61,9 +61,14 @@ class _TodayScreenState extends State<TodayScreen> {
       _entries = entries;
       _loading = false;
     });
-    if (_isToday(_selectedDate) && !_scrolledToNow) {
-      _scrolledToNow = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToNow());
+    if (_isToday(_selectedDate)) {
+      if (!_scrolledToNow) {
+        _scrolledToNow = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToNow());
+      }
+    } else if (_entries.isNotEmpty) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _scrollToFirstEntry());
     }
   }
 
@@ -100,6 +105,18 @@ class _TodayScreenState extends State<TodayScreen> {
     final nowY = timeToY(DateTime.now());
     final target =
         (nowY - 200).clamp(0.0, _scrollController.position.maxScrollExtent);
+    _scrollController.jumpTo(target);
+  }
+
+  /// For non-today dates there's no "now" to scroll to, so instead line up
+  /// the top of the viewport with the day's earliest entry.
+  void _scrollToFirstEntry() {
+    if (!_scrollController.hasClients || _entries.isEmpty) return;
+    final earliest = _entries
+        .map((e) => e.timestamp)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    final target = timeToY(earliest)
+        .clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.jumpTo(target);
   }
 
