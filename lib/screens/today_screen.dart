@@ -7,6 +7,18 @@ import '../widgets/add_entry_sheet.dart';
 import '../widgets/timeline_painter.dart';
 import 'settings_screen.dart';
 import 'summary_screen.dart';
+import 'week_summary_view.dart';
+import 'week_timeline_view.dart';
+
+enum ViewMode { day, weekSummary, weekTimeline }
+
+DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+/// Monday of the week containing [d].
+DateTime _mondayOf(DateTime d) {
+  final date = _dateOnly(d);
+  return date.subtract(Duration(days: date.weekday - 1));
+}
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -21,6 +33,10 @@ class _TodayScreenState extends State<TodayScreen> {
   bool _scrolledToNow = false;
   final ScrollController _scrollController = ScrollController();
 
+  ViewMode _viewMode = ViewMode.day;
+  DateTime _selectedDate = _dateOnly(DateTime.now());
+  late DateTime _weekStart = _mondayOf(_selectedDate);
+
   @override
   void initState() {
     super.initState();
@@ -33,17 +49,45 @@ class _TodayScreenState extends State<TodayScreen> {
     super.dispose();
   }
 
+  bool _isToday(DateTime d) {
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
   Future<void> _load() async {
     setState(() => _loading = true);
-    final entries = await DatabaseHelper.instance.entriesForDay(DateTime.now());
+    final entries = await DatabaseHelper.instance.entriesForDay(_selectedDate);
     setState(() {
       _entries = entries;
       _loading = false;
     });
-    if (!_scrolledToNow) {
+    if (_isToday(_selectedDate) && !_scrolledToNow) {
       _scrolledToNow = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToNow());
     }
+  }
+
+  void _goToDay(int deltaDays) {
+    setState(() {
+      _selectedDate = _selectedDate.add(Duration(days: deltaDays));
+      _scrolledToNow = false;
+    });
+    _load();
+  }
+
+  void _goToWeek(int deltaWeeks) {
+    setState(() {
+      _weekStart = _weekStart.add(Duration(days: 7 * deltaWeeks));
+    });
+  }
+
+  void _jumpToDay(DateTime day) {
+    setState(() {
+      _selectedDate = _dateOnly(day);
+      _scrolledToNow = false;
+      _viewMode = ViewMode.day;
+    });
+    _load();
   }
 
   Future<void> _delete(int id) async {
@@ -114,13 +158,127 @@ class _TodayScreenState extends State<TodayScreen> {
     final hour = totalMinutes ~/ 60;
     final minute = (totalMinutes % 60).round().clamp(0, 59);
     showAddEntrySheet(context, _load,
-        initialTime: TimeOfDay(hour: hour.toInt(), minute: minute));
+        initialTime: TimeOfDay(hour: hour.toInt(), minute: minute),
+        day: _selectedDate);
+  }
+
+  String _dayTitle() {
+    final label = DateFormat('EEE, MMM d').format(_selectedDate);
+    return _isToday(_selectedDate) ? 'Today — $label' : label;
+  }
+
+  String _weekTitle() {
+    final end = _weekStart.add(const Duration(days: 6));
+    return 'Week of ${DateFormat('MMM d').format(_weekStart)} – '
+        '${DateFormat('MMM d').format(end)}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final today = DateFormat('EEEE, MMM d').format(DateTime.now());
-    final mealCount = _entries.where((e) => e.type == EntryType.meal).length;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDayMode = _viewMode == ViewMode.day;
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.chevron_left),
+          tooltip: isDayMode ? 'Previous day' : 'Previous week',
+          onPressed: isDayMode ? () => _goToDay(-1) : () => _goToWeek(-1),
+        ),
+        title: Text(isDayMode ? _dayTitle() : _weekTitle(),
+            style: const TextStyle(fontSize: 18)),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            tooltip: isDayMode ? 'Next day' : 'Next week',
+            onPressed: isDayMode ? () => _goToDay(1) : () => _goToWeek(1),
+          ),
+          if (isDayMode) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+              child: Chip(
+                avatar: const Icon(Icons.restaurant, size: 16),
+                label: Text(
+                    '${_entries.where((e) => e.type == EntryType.meal).length}'),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.assessment_outlined),
+              tooltip: 'Day summary',
+              onPressed: () =>
+                  showDaySummarySheet(context, _selectedDate, _entries),
+            ),
+          ],
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => showSettingsSheet(context),
+          ),
+        ],
+      ),
+      body: _buildBody(colorScheme),
+      floatingActionButton: isDayMode
+          ? FloatingActionButton(
+              onPressed: () =>
+                  showAddEntrySheet(context, _load, day: _selectedDate),
+              child: const Icon(Icons.add),
+            )
+          : null,
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+          child: Material(
+            elevation: 3,
+            borderRadius: BorderRadius.circular(28),
+            color: colorScheme.surfaceContainerHigh,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+              child: SegmentedButton<ViewMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: ViewMode.day,
+                    icon: Icon(Icons.view_day_outlined),
+                    label: Text('Day'),
+                  ),
+                  ButtonSegment(
+                    value: ViewMode.weekSummary,
+                    icon: Icon(Icons.table_rows_outlined),
+                    label: Text('Week'),
+                  ),
+                  ButtonSegment(
+                    value: ViewMode.weekTimeline,
+                    icon: Icon(Icons.calendar_view_week_outlined),
+                    label: Text('Grid'),
+                  ),
+                ],
+                selected: {_viewMode},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => setState(() => _viewMode = s.first),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(ColorScheme colorScheme) {
+    switch (_viewMode) {
+      case ViewMode.weekSummary:
+        return WeekSummaryView(weekStart: _weekStart, onDayTap: _jumpToDay);
+      case ViewMode.weekTimeline:
+        return WeekTimelineView(weekStart: _weekStart, onDayTap: _jumpToDay);
+      case ViewMode.day:
+        return _buildDayBody(colorScheme);
+    }
+  }
+
+  Widget _buildDayBody(ColorScheme colorScheme) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
     final sorted = [..._entries]
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     final positions = _layoutPositions(sorted);
@@ -129,90 +287,56 @@ class _TodayScreenState extends State<TodayScreen> {
         : positions.values.reduce((a, b) => a > b ? a : b) + 80;
     final canvasHeight =
         maxBottom > 24 * hourHeight ? maxBottom : 24 * hourHeight;
-    final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Today — $today'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-            child: Chip(
-              avatar: const Icon(Icons.restaurant, size: 16),
-              label: Text('$mealCount'),
-              visualDensity: VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.assessment_outlined),
-            tooltip: 'Day summary',
-            onPressed: () =>
-                showDaySummarySheet(context, DateTime.now(), _entries),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => showSettingsSheet(context),
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              controller: _scrollController,
-              child: SizedBox(
-                height: canvasHeight,
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTapUp: _onTimelineTap,
-                        child: CustomPaint(
-                          painter: TimelinePainter(
-                            optimalWindows: _optimalWindows(_entries),
-                            gridColor: colorScheme.outlineVariant,
-                            labelColor: colorScheme.onSurfaceVariant,
-                            optimalColor:
-                                colorScheme.tertiary.withOpacity(0.16),
-                            nowMinutes: minutesSinceMidnight(DateTime.now()),
-                          ),
-                        ),
-                      ),
-                    ),
-                    for (final e in sorted)
-                      Positioned(
-                        top: positions[e.id!],
-                        left: timelineLeftMargin + 8,
-                        right: 8,
-                        child: TimelineTile(
-                          entry: e,
-                          onDelete: () => _delete(e.id!),
-                          onTap: () async {
-                            await showEntryDetailSheet(context, e, _load);
-                          },
-                        ),
-                      ),
-                    if (_entries.isEmpty)
-                      const Positioned(
-                        top: 24,
-                        left: 0,
-                        right: 0,
-                        child: IgnorePointer(
-                          child: Center(
-                            child: Text(
-                                'Nothing logged yet. Tap the timeline to add.'),
-                          ),
-                        ),
-                      ),
-                  ],
+    return SingleChildScrollView(
+      controller: _scrollController,
+      child: SizedBox(
+        height: canvasHeight,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapUp: _onTimelineTap,
+                child: CustomPaint(
+                  painter: TimelinePainter(
+                    optimalWindows: _optimalWindows(_entries),
+                    gridColor: colorScheme.outlineVariant,
+                    labelColor: colorScheme.onSurfaceVariant,
+                    optimalColor: colorScheme.tertiary.withOpacity(0.16),
+                    nowMinutes: _isToday(_selectedDate)
+                        ? minutesSinceMidnight(DateTime.now())
+                        : null,
+                  ),
                 ),
               ),
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => showAddEntrySheet(context, _load),
-        child: const Icon(Icons.add),
+            for (final e in sorted)
+              Positioned(
+                top: positions[e.id!],
+                left: timelineLeftMargin + 8,
+                right: 8,
+                child: TimelineTile(
+                  entry: e,
+                  onDelete: () => _delete(e.id!),
+                  onTap: () async {
+                    await showEntryDetailSheet(context, e, _load);
+                  },
+                ),
+              ),
+            if (_entries.isEmpty)
+              const Positioned(
+                top: 24,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Center(
+                    child: Text('Nothing logged yet. Tap the timeline to add.'),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -6,7 +6,7 @@ import '../utils/units.dart';
 import 'dual_unit_field.dart';
 
 Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved,
-    {TimeOfDay? initialTime}) async {
+    {TimeOfDay? initialTime, DateTime? day}) async {
   await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -24,7 +24,7 @@ Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved,
                     () async {
                   Navigator.pop(ctx);
                   await _quickAdd(context, EntryType.wake, onSaved,
-                      initialTime: initialTime);
+                      initialTime: initialTime, day: day);
                 }),
                 _optionTile(
                     ctx, Icons.local_drink, Colors.blue, 'Protein drink',
@@ -32,55 +32,55 @@ Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved,
                   Navigator.pop(ctx);
                   await _showProteinForm(
                       context, EntryType.proteinDrink, onSaved,
-                      initialTime: initialTime);
+                      initialTime: initialTime, day: day);
                 }),
                 _optionTile(ctx, Icons.icecream, Colors.brown, 'Protein bar',
                     () async {
                   Navigator.pop(ctx);
                   await _showProteinForm(context, EntryType.proteinBar, onSaved,
-                      initialTime: initialTime);
+                      initialTime: initialTime, day: day);
                 }),
                 _optionTile(ctx, Icons.restaurant, Colors.green, 'Meal',
                     () async {
                   Navigator.pop(ctx);
                   await _showMealForm(context, onSaved,
-                      initialTime: initialTime);
+                      initialTime: initialTime, day: day);
                 }),
                 _optionTile(ctx, Icons.directions_run, Colors.red, 'Exercise',
                     () async {
                   Navigator.pop(ctx);
                   await _showExerciseForm(context, onSaved,
-                      initialTime: initialTime);
+                      initialTime: initialTime, day: day);
                 }),
                 _optionTile(ctx, Icons.water_drop, Colors.cyan, 'Water',
                     () async {
                   Navigator.pop(ctx);
                   await _showWaterForm(context, onSaved,
-                      initialTime: initialTime);
+                      initialTime: initialTime, day: day);
                 }),
                 _optionTile(
                     ctx, Icons.vaccines, Colors.deepPurple, 'Tirzepatide',
                     () async {
                   Navigator.pop(ctx);
                   await _showTirzepatideForm(context, onSaved,
-                      initialTime: initialTime);
+                      initialTime: initialTime, day: day);
                 }),
                 _optionTile(ctx, Icons.medication, Colors.pink, 'Pills',
                     () async {
                   Navigator.pop(ctx);
                   await _showPillsForm(context, onSaved,
-                      initialTime: initialTime);
+                      initialTime: initialTime, day: day);
                 }),
                 _optionTile(ctx, Icons.science, Colors.teal, 'GAC', () async {
                   Navigator.pop(ctx);
                   await _showGacForm(context, onSaved,
-                      initialTime: initialTime);
+                      initialTime: initialTime, day: day);
                 }),
                 _optionTile(ctx, Icons.bedtime, Colors.indigo, 'Bed time',
                     () async {
                   Navigator.pop(ctx);
                   await _quickAdd(context, EntryType.bed, onSaved,
-                      initialTime: initialTime);
+                      initialTime: initialTime, day: day);
                 }),
               ],
             ),
@@ -154,10 +154,11 @@ Future<void> _deleteAndClose(
 
 Future<void> _quickAdd(
     BuildContext context, EntryType type, VoidCallback onSaved,
-    {TimeOfDay? initialTime}) async {
+    {TimeOfDay? initialTime, DateTime? day}) async {
   final time = await _pickTime(context, initial: initialTime);
   if (time == null) return;
-  final entry = TimelineEntry(type: type, timestamp: _combineToday(time));
+  final entry =
+      TimelineEntry(type: type, timestamp: _combineToday(time, day: day));
   await DatabaseHelper.instance.insertEntry(entry);
   onSaved();
 }
@@ -204,7 +205,9 @@ Future<void> _showSimpleEditForm(
                       child: FilledButton(
                         onPressed: () async {
                           await DatabaseHelper.instance.updateEntry(
-                            entry.copyWith(timestamp: _combineToday(time)),
+                            entry.copyWith(
+                                timestamp:
+                                    _combineToday(time, day: entry.timestamp)),
                           );
                           onSaved();
                           Navigator.pop(ctx);
@@ -228,7 +231,7 @@ Future<void> _showSimpleEditForm(
 /// override calories/protein for just this entry.
 Future<void> _showProteinForm(
     BuildContext context, EntryType type, VoidCallback onSaved,
-    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+    {TimelineEntry? existing, TimeOfDay? initialTime, DateTime? day}) async {
   final settings = await DatabaseHelper.instance.getSettings();
   final defaults = type == EntryType.proteinBar
       ? settings.proteinBar
@@ -240,6 +243,7 @@ Future<void> _showProteinForm(
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
       : (initialTime ?? TimeOfDay.now());
+  final baseDate = existing?.timestamp ?? day;
   double proteinGrams = existing?.proteinGrams ?? defaults.proteinGrams;
   double calories = existing?.calories ?? defaults.calories;
   bool customizing = existing != null &&
@@ -337,7 +341,7 @@ Future<void> _showProteinForm(
                         final entry = TimelineEntry(
                           id: existing?.id,
                           type: type,
-                          timestamp: _combineToday(time),
+                          timestamp: _combineToday(time, day: baseDate),
                           proteinGrams: proteinGrams,
                           calories: calories,
                         );
@@ -363,10 +367,11 @@ Future<void> _showProteinForm(
 }
 
 Future<void> _showWaterForm(BuildContext context, VoidCallback onSaved,
-    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+    {TimelineEntry? existing, TimeOfDay? initialTime, DateTime? day}) async {
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
       : (initialTime ?? TimeOfDay.now());
+  final baseDate = existing?.timestamp ?? day;
   final ozCtrl = TextEditingController(
       text: existing?.waterOz != null
           ? existing!.waterOz!.toStringAsFixed(1)
@@ -378,13 +383,14 @@ Future<void> _showWaterForm(BuildContext context, VoidCallback onSaved,
       await DatabaseHelper.instance.insertEntry(
         TimelineEntry(
           type: EntryType.water,
-          timestamp: _combineToday(time),
+          timestamp: _combineToday(time, day: baseDate),
           waterOz: oz,
         ),
       );
     } else {
       await DatabaseHelper.instance.updateEntry(
-        existing.copyWith(timestamp: _combineToday(time), waterOz: oz),
+        existing.copyWith(
+            timestamp: _combineToday(time, day: baseDate), waterOz: oz),
       );
     }
     onSaved();
@@ -475,12 +481,13 @@ Future<void> _showWaterForm(BuildContext context, VoidCallback onSaved,
 }
 
 Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
-    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+    {TimelineEntry? existing, TimeOfDay? initialTime, DateTime? day}) async {
   final proteinOptions = await DatabaseHelper.instance.proteinOptions();
   final veggieOptions = await DatabaseHelper.instance.veggieOptions();
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
       : (initialTime ?? TimeOfDay.now());
+  final baseDate = existing?.timestamp ?? day;
   String? protein = existing?.proteinName;
   String? veggie = existing?.veggieName;
   double? proteinGrams = existing?.proteinGrams;
@@ -636,7 +643,7 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
                           final entry = TimelineEntry(
                             id: existing?.id,
                             type: EntryType.meal,
-                            timestamp: _combineToday(time),
+                            timestamp: _combineToday(time, day: baseDate),
                             proteinName: (proteinName?.isNotEmpty ?? false)
                                 ? proteinName
                                 : null,
@@ -669,10 +676,11 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
 }
 
 Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved,
-    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+    {TimelineEntry? existing, TimeOfDay? initialTime, DateTime? day}) async {
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
       : (initialTime ?? TimeOfDay.now());
+  final baseDate = existing?.timestamp ?? day;
   final descCtrl =
       TextEditingController(text: existing?.exerciseDescription ?? '');
   final minutesCtrl =
@@ -738,7 +746,7 @@ Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved,
                         final entry = TimelineEntry(
                           id: existing?.id,
                           type: EntryType.exercise,
-                          timestamp: _combineToday(time),
+                          timestamp: _combineToday(time, day: baseDate),
                           exerciseDescription: descCtrl.text.trim().isEmpty
                               ? null
                               : descCtrl.text.trim(),
@@ -769,7 +777,7 @@ Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved,
 /// and unit (see Settings), with a "Change values" toggle to override the
 /// dose (and, if needed, the unit) for just this entry.
 Future<void> _showTirzepatideForm(BuildContext context, VoidCallback onSaved,
-    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+    {TimelineEntry? existing, TimeOfDay? initialTime, DateTime? day}) async {
   final settings = await DatabaseHelper.instance.getSettings();
   final defaults = settings.tirzepatide;
 
@@ -778,6 +786,7 @@ Future<void> _showTirzepatideForm(BuildContext context, VoidCallback onSaved,
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
       : (initialTime ?? TimeOfDay.now());
+  final baseDate = existing?.timestamp ?? day;
   double dose = existing?.tirzepatideDose ?? defaults.dose;
   String unit = existing?.tirzepatideUnit ?? defaults.unit;
   bool customizing = existing != null &&
@@ -885,7 +894,7 @@ Future<void> _showTirzepatideForm(BuildContext context, VoidCallback onSaved,
                         final entry = TimelineEntry(
                           id: existing?.id,
                           type: EntryType.tirzepatide,
-                          timestamp: _combineToday(time),
+                          timestamp: _combineToday(time, day: baseDate),
                           tirzepatideDose: dose,
                           tirzepatideUnit: unit,
                         );
@@ -914,7 +923,7 @@ Future<void> _showTirzepatideForm(BuildContext context, VoidCallback onSaved,
 /// Settings), with a "Change values" toggle to override the amount for
 /// just this entry.
 Future<void> _showGacForm(BuildContext context, VoidCallback onSaved,
-    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+    {TimelineEntry? existing, TimeOfDay? initialTime, DateTime? day}) async {
   final settings = await DatabaseHelper.instance.getSettings();
   final defaultMl = settings.gacDefaultMl;
 
@@ -923,6 +932,7 @@ Future<void> _showGacForm(BuildContext context, VoidCallback onSaved,
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
       : (initialTime ?? TimeOfDay.now());
+  final baseDate = existing?.timestamp ?? day;
   double ml = existing?.gacMl ?? defaultMl;
   bool customizing = existing != null && existing.gacMl != defaultMl;
   final mlCtrl = TextEditingController(text: formatNum(ml));
@@ -1009,7 +1019,7 @@ Future<void> _showGacForm(BuildContext context, VoidCallback onSaved,
                         final entry = TimelineEntry(
                           id: existing?.id,
                           type: EntryType.gac,
-                          timestamp: _combineToday(time),
+                          timestamp: _combineToday(time, day: baseDate),
                           gacMl: ml,
                         );
                         if (existing == null) {
@@ -1037,13 +1047,14 @@ Future<void> _showGacForm(BuildContext context, VoidCallback onSaved,
 /// (see Settings), checked by default, logging each checked pill's
 /// configured count.
 Future<void> _showPillsForm(BuildContext context, VoidCallback onSaved,
-    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+    {TimelineEntry? existing, TimeOfDay? initialTime, DateTime? day}) async {
   final pillTypes = await DatabaseHelper.instance.getPillTypes();
   if (!context.mounted) return;
 
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
       : (initialTime ?? TimeOfDay.now());
+  final baseDate = existing?.timestamp ?? day;
   final existingNames = existing?.pills?.map((p) => p.name).toSet() ?? {};
   final checked = <String, bool>{
     for (final p in pillTypes)
@@ -1117,7 +1128,7 @@ Future<void> _showPillsForm(BuildContext context, VoidCallback onSaved,
                         final entry = TimelineEntry(
                           id: existing?.id,
                           type: EntryType.pills,
-                          timestamp: _combineToday(time),
+                          timestamp: _combineToday(time, day: baseDate),
                           pills: pills,
                         );
                         if (existing == null) {

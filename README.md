@@ -1,11 +1,13 @@
 # Daily Timeline
 
-A single-tab Android app (built with Flutter) for logging a handful of daily
-events — wake up, protein drink, protein bar, meals, exercise, water,
-tirzepatide, pills, GAC, bed time — on an hour-gridded timeline that
-positions each entry at its actual time of day. All data is stored
-on-device in a local SQLite database via `sqflite`; nothing leaves the
-phone.
+A Flutter Android app for logging a handful of daily events — wake up,
+protein drink, protein bar, meals, exercise, water, tirzepatide, pills,
+GAC, bed time — on an hour-gridded timeline that positions each entry at
+its actual time of day. Left/right arrows step through days (or weeks),
+and a floating Day/Week/Grid switcher swaps between the day timeline, a
+7-day summary, and a horizontal week-at-a-glance timeline grid. All data
+is stored on-device in a local SQLite database via `sqflite`; nothing
+leaves the phone.
 
 ## Running it
 
@@ -44,12 +46,26 @@ connection: `flutter build apk --release`, then install the file at
   `pill_types` table (seeded with 2 MRC-6, 2 Fish Oil, 2 Enhancer, 2
   Corti-Trim on first run); also has `updateEntry` (for editing) and
   `mostRecentBedBefore` (for sleep-duration estimates)
-- `lib/screens/today_screen.dart` — the single tab: an hour-gridded,
-  scrollable timeline canvas. Entries are positioned vertically at their
-  actual time of day (colliding entries nudge apart slightly to stay
-  readable), with a live "now" marker and an AppBar meal counter + summary
-  + settings buttons. Tapping anywhere on the empty timeline (not the FAB)
-  opens the add-entry sheet pre-filled with the tapped time
+- `lib/screens/today_screen.dart` — hosts all three views (`ViewMode`:
+  day / weekSummary / weekTimeline) plus the AppBar's day/week navigation
+  arrows and the floating Day/Week/Grid `SegmentedButton` in
+  `bottomNavigationBar`. The day view is an hour-gridded, scrollable
+  timeline canvas — entries are positioned vertically at their actual
+  time of day (colliding entries nudge apart slightly to stay readable),
+  with a live "now" marker (today only) and an AppBar meal counter +
+  summary + settings buttons (day mode only). Tapping anywhere on the
+  empty timeline (not the FAB) opens the add-entry sheet pre-filled with
+  the tapped time, on the currently selected date
+- `lib/screens/week_summary_view.dart` — the 7-day breakdown: a totals
+  card for the week (meals, protein drinks/bars, calories, water,
+  protein/veggie, pills, tirzepatide/GAC day counts) plus one card per
+  day (same stats, tap to jump to that day) with a star badge — filled if
+  tirzepatide was taken that day, circled if GAC was also taken
+- `lib/screens/week_timeline_view.dart` — the 7 days stacked as
+  horizontal mini-timelines aligned by time of day (hour labels every 3h,
+  vertical dotted gridlines, a "now" line on today's row). Each entry is
+  a small colored dot (tap to open/edit it); tapping elsewhere on a row
+  jumps to the day view for that date
 - `lib/widgets/timeline_painter.dart` — the `CustomPainter` that draws the
   dotted hourly gridlines and the shaded "optimal window" bands (3-4 hours
   after any meal/protein entry — a rough follow-up-meal timing cue)
@@ -71,9 +87,12 @@ connection: `flutter build apk --release`, then install the file at
   each showing a current-values preview when collapsed. Pill-type
   management (add/edit count/delete) applies immediately; the other
   defaults need "Save settings"
-- `lib/screens/summary_screen.dart` — the day-summary bottom sheet: meal
-  count, estimated calories, protein/veggie totals, water, exercise
-  minutes, sleep duration, tirzepatide dose totals, pill counts, GAC total
+- `lib/screens/summary_screen.dart` — `DaySummary.compute` (shared by the
+  day-summary sheet and both week views) plus the day-summary bottom
+  sheet itself: meal count, protein drinks/bars, estimated calories,
+  protein/veggie totals, water, exercise minutes, sleep duration,
+  tirzepatide dose totals, pill counts, GAC total. `statRow` is exported
+  for reuse by `week_summary_view.dart`
 - `lib/utils/units.dart` — oz↔gram conversion and the calorie-estimate
   formula (protein ~4 kcal/g, veggies ~0.3 kcal/g for meals — a rough
   macro-based guess, not a food database; protein bars/drinks use their
@@ -81,13 +100,14 @@ connection: `flutter build apk --release`, then install the file at
 
 ## What I'd extend first
 
-1. **Multiple days.** Right now it only shows today. Add a date picker or
-   left/right swipe so you can review and log for past days.
-2. **A real food database** for calorie estimates — the current estimate
+1. **A real food database** for calorie estimates — the current estimate
    is a rough macro-weight heuristic, not per-food nutrition data.
-3. **Export/backup** — since storage is local-only, add a "share as
+2. **Export/backup** — since storage is local-only, add a "share as
    CSV/JSON" option so you don't lose history if you lose the phone.
-4. **Reminders** — a local notification if you haven't logged a meal by a
+3. **Reminders** — a local notification if you haven't logged a meal by a
    certain time, or a wake-up/bed-time nudge.
-5. **Cloud sync** — once the local flow feels right, layer in Firebase or
+4. **Cloud sync** — once the local flow feels right, layer in Firebase or
    a simple REST backend so history survives a reinstall.
+5. **Month view / calendar jump** — the day and week arrows only step one
+   unit at a time; a calendar picker would make jumping to a specific
+   past date faster.

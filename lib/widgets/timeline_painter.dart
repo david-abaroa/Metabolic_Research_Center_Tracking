@@ -15,6 +15,13 @@ double minutesSinceMidnight(DateTime t) =>
 
 double timeToY(DateTime t) => minutesSinceMidnight(t) / 60.0 * hourHeight;
 
+String hourLabel(int h) {
+  final period = h < 12 ? 'AM' : 'PM';
+  int hour12 = h % 12;
+  if (hour12 == 0) hour12 = 12;
+  return '$hour12 $period';
+}
+
 class TimelinePainter extends CustomPainter {
   final List<OptimalWindow> optimalWindows;
   final Color gridColor;
@@ -53,7 +60,7 @@ class TimelinePainter extends CustomPainter {
       _drawDottedLine(canvas, Offset(timelineLeftMargin, y),
           Offset(size.width, y), linePaint);
       if (h < 24) {
-        final label = _hourLabel(h);
+        final label = hourLabel(h);
         textPainter.text = TextSpan(
           text: label,
           style: TextStyle(color: labelColor, fontSize: 11),
@@ -72,13 +79,6 @@ class TimelinePainter extends CustomPainter {
           Offset(timelineLeftMargin, y), Offset(size.width, y), nowPaint);
       canvas.drawCircle(Offset(timelineLeftMargin, y), 3, nowPaint);
     }
-  }
-
-  String _hourLabel(int h) {
-    final period = h < 12 ? 'AM' : 'PM';
-    int hour12 = h % 12;
-    if (hour12 == 0) hour12 = 12;
-    return '$hour12 $period';
   }
 
   void _drawDottedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
@@ -102,5 +102,47 @@ class TimelinePainter extends CustomPainter {
     return oldDelegate.optimalWindows != optimalWindows ||
         oldDelegate.gridColor != gridColor ||
         oldDelegate.nowMinutes != nowMinutes;
+  }
+}
+
+/// Vertical dotted hour gridlines for one row of the week-timeline view
+/// (time runs left-to-right instead of top-to-bottom).
+class VerticalHourGridPainter extends CustomPainter {
+  final Color gridColor;
+  final double? nowX;
+
+  VerticalHourGridPainter({required this.gridColor, this.nowX});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    for (int h = 0; h <= 24; h += 3) {
+      final x = size.width * h / 24;
+      _drawDottedVLine(canvas, x, size.height, linePaint);
+    }
+    if (nowX != null) {
+      final nowPaint = Paint()
+        ..color = Colors.redAccent
+        ..strokeWidth = 1.5;
+      canvas.drawLine(Offset(nowX!, 0), Offset(nowX!, size.height), nowPaint);
+    }
+  }
+
+  void _drawDottedVLine(Canvas canvas, double x, double height, Paint paint) {
+    const dashLen = 3.0;
+    const dashSpace = 3.0;
+    double covered = 0;
+    while (covered < height) {
+      final end = (covered + dashLen).clamp(0.0, height);
+      canvas.drawLine(Offset(x, covered), Offset(x, end), paint);
+      covered += dashLen + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant VerticalHourGridPainter oldDelegate) {
+    return oldDelegate.gridColor != gridColor || oldDelegate.nowX != nowX;
   }
 }

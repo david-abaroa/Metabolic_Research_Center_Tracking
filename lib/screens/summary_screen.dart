@@ -17,6 +17,7 @@ class DaySummary {
   final double tirzepatideMlTotal;
   final Map<String, int> pillTotals;
   final double gacMlTotal;
+  final int proteinBarDrinkCount;
 
   DaySummary({
     required this.mealCount,
@@ -30,7 +31,12 @@ class DaySummary {
     required this.tirzepatideMlTotal,
     required this.pillTotals,
     required this.gacMlTotal,
+    required this.proteinBarDrinkCount,
   });
+
+  int get pillCount => pillTotals.values.fold(0, (a, b) => a + b);
+  bool get tookTirzepatide => tirzepatideMgTotal > 0 || tirzepatideMlTotal > 0;
+  bool get tookGac => gacMlTotal > 0;
 
   static Future<DaySummary> compute(List<TimelineEntry> entries) async {
     int mealCount = 0;
@@ -42,6 +48,7 @@ class DaySummary {
     double tirzMg = 0;
     double tirzMl = 0;
     double gacMl = 0;
+    int proteinBarDrinkCount = 0;
     final pillTotals = <String, int>{};
     TimelineEntry? wake;
 
@@ -58,6 +65,7 @@ class DaySummary {
         case EntryType.proteinBar:
           protein += e.proteinGrams ?? 0;
           calories += e.calories ?? 0;
+          proteinBarDrinkCount++;
           break;
         case EntryType.water:
           water += e.waterOz ?? 0;
@@ -109,6 +117,7 @@ class DaySummary {
       tirzepatideMlTotal: tirzMl,
       pillTotals: pillTotals,
       gacMlTotal: gacMl,
+      proteinBarDrinkCount: proteinBarDrinkCount,
     );
   }
 }
@@ -131,27 +140,29 @@ Future<void> showDaySummarySheet(
               Text('Summary — ${DateFormat('EEEE, MMM d').format(day)}',
                   style: Theme.of(ctx).textTheme.titleLarge),
               const SizedBox(height: 16),
-              _statRow(ctx, Icons.restaurant, 'Meals logged',
+              statRow(ctx, Icons.restaurant, 'Meals logged',
                   '${summary.mealCount}'),
-              _statRow(ctx, Icons.local_fire_department, 'Estimated calories',
+              statRow(ctx, Icons.local_drink, 'Protein drinks/bars',
+                  '${summary.proteinBarDrinkCount}'),
+              statRow(ctx, Icons.local_fire_department, 'Estimated calories',
                   '~${summary.estimatedCalories.toStringAsFixed(0)} kcal'),
-              _statRow(
+              statRow(
                   ctx,
                   Icons.egg_alt,
                   'Total protein',
                   '${summary.totalProteinGrams.toStringAsFixed(0)}g '
                       '(${gramsToOz(summary.totalProteinGrams).toStringAsFixed(1)} oz)'),
-              _statRow(
+              statRow(
                   ctx,
                   Icons.eco,
                   'Total veggies',
                   '${summary.totalVeggieGrams.toStringAsFixed(0)}g '
                       '(${gramsToOz(summary.totalVeggieGrams).toStringAsFixed(1)} oz)'),
-              _statRow(ctx, Icons.water_drop, 'Water',
+              statRow(ctx, Icons.water_drop, 'Water',
                   '${summary.totalWaterOz.toStringAsFixed(1)} fl oz'),
-              _statRow(ctx, Icons.directions_run, 'Exercise',
+              statRow(ctx, Icons.directions_run, 'Exercise',
                   '${summary.totalExerciseMinutes} min'),
-              _statRow(
+              statRow(
                   ctx,
                   Icons.bedtime,
                   'Sleep',
@@ -160,7 +171,7 @@ Future<void> showDaySummarySheet(
                       : _formatDuration(summary.sleepDuration!)),
               if (summary.tirzepatideMgTotal > 0 ||
                   summary.tirzepatideMlTotal > 0)
-                _statRow(
+                statRow(
                     ctx,
                     Icons.vaccines,
                     'Tirzepatide',
@@ -171,7 +182,7 @@ Future<void> showDaySummarySheet(
                         '${formatNum(summary.tirzepatideMlTotal)} ml',
                     ].join(' + ')),
               if (summary.pillTotals.isNotEmpty)
-                _statRow(
+                statRow(
                     ctx,
                     Icons.medication,
                     'Pills',
@@ -179,7 +190,7 @@ Future<void> showDaySummarySheet(
                         .map((e) => '${e.value} ${e.key}')
                         .join(', ')),
               if (summary.gacMlTotal > 0)
-                _statRow(ctx, Icons.science, 'GAC',
+                statRow(ctx, Icons.science, 'GAC',
                     '${formatNum(summary.gacMlTotal)} ml'),
               const SizedBox(height: 12),
               Text(
@@ -203,7 +214,7 @@ String _formatDuration(Duration d) {
   return '${h}h ${m}m';
 }
 
-Widget _statRow(
+Widget statRow(
     BuildContext context, IconData icon, String label, String value) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
