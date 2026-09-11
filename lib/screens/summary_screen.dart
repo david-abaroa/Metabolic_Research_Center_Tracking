@@ -41,6 +41,11 @@ class DaySummary {
           calories += estimateMealCalories(
               proteinGrams: e.proteinGrams, veggieGrams: e.veggieGrams);
           break;
+        case EntryType.proteinDrink:
+        case EntryType.proteinBar:
+          protein += e.proteinGrams ?? 0;
+          calories += e.calories ?? 0;
+          break;
         case EntryType.water:
           water += e.waterOz ?? 0;
           break;
@@ -122,9 +127,10 @@ Future<void> showDaySummarySheet(
                       : _formatDuration(summary.sleepDuration!)),
               const SizedBox(height: 12),
               Text(
-                'Calorie estimate is a rough guide from logged protein/veggie '
-                'weight (protein ~4 kcal/g, veggies ~0.3 kcal/g) — not a '
-                'precise food-database count.',
+                'Estimated calories: meals use a rough guide from logged '
+                'protein/veggie weight (protein ~4 kcal/g, veggies ~0.3 '
+                'kcal/g); protein bars/drinks use their default or '
+                'overridden calorie value. Not a precise food-database count.',
                 style: Theme.of(ctx).textTheme.bodySmall,
               ),
             ],

@@ -27,33 +27,44 @@ connection: `flutter build apk --release`, then install the file at
 ## How it works
 
 - `lib/models/timeline_entry.dart` — the data model for one timeline entry
-  (now includes `water` as an entry type)
+  (includes `water` as an entry type, plus a `calories` field used by
+  protein bar/drink entries)
+- `lib/models/app_settings.dart` — the default calories + protein grams
+  used when quick-logging a protein bar or protein drink
 - `lib/db/database_helper.dart` — SQLite setup: an `entries` table plus
   `protein_options` / `veggie_options` tables that grow automatically every
-  time you type a new protein or veggie name into a meal; also has
+  time you type a new protein or veggie name into a meal, and a single-row
+  `settings` table for the protein bar/drink defaults; also has
   `updateEntry` (for editing) and `mostRecentBedBefore` (for sleep-duration
   estimates)
 - `lib/screens/today_screen.dart` — the single tab: an hour-gridded,
   scrollable timeline canvas. Entries are positioned vertically at their
   actual time of day (colliding entries nudge apart slightly to stay
   readable), with a live "now" marker and an AppBar meal counter + summary
-  button
+  + settings buttons. Tapping anywhere on the empty timeline (not the FAB)
+  opens the add-entry sheet pre-filled with the tapped time
 - `lib/widgets/timeline_painter.dart` — the `CustomPainter` that draws the
   dotted hourly gridlines and the shaded "optimal window" bands (3-4 hours
   after any meal/protein entry — a rough follow-up-meal timing cue)
-- `lib/widgets/add_entry_sheet.dart` — the "+" button opens a picker for
-  the 7 entry types. Also powers `showEntryDetailSheet`, used when tapping
-  an existing timeline entry to view/edit/delete it
+- `lib/widgets/add_entry_sheet.dart` — the "+" button (or tapping the
+  timeline) opens a picker for the 7 entry types. Protein bar/drink use the
+  saved defaults from Settings with a "Change values" toggle to override
+  calories/protein for just that entry. Also powers `showEntryDetailSheet`,
+  used when tapping an existing timeline entry to view/edit/delete it
 - `lib/widgets/dual_unit_field.dart` — linked oz/gram input pair used for
-  meal protein/veggie amounts; typing into either field updates the other
+  meal and protein bar/drink amounts; typing into either field updates the
+  other
 - `lib/widgets/timeline_tile.dart` — renders each entry as an icon + time +
   detail line; tap to edit, swipe to delete
+- `lib/screens/settings_screen.dart` — the Settings sheet for editing the
+  protein bar/drink defaults
 - `lib/screens/summary_screen.dart` — the day-summary bottom sheet: meal
   count, estimated calories, protein/veggie totals, water, exercise
   minutes, sleep duration
 - `lib/utils/units.dart` — oz↔gram conversion and the calorie-estimate
-  formula (protein ~4 kcal/g, veggies ~0.3 kcal/g — a rough macro-based
-  guess, not a food database)
+  formula (protein ~4 kcal/g, veggies ~0.3 kcal/g for meals — a rough
+  macro-based guess, not a food database; protein bars/drinks use their
+  default or overridden calorie value directly)
 
 ## What I'd extend first
 

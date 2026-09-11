@@ -18,6 +18,10 @@ class TimelineEntry {
   // Water-specific
   final double? waterOz;
 
+  // Protein bar / protein drink specific (defaults come from AppSettings,
+  // but can be overridden per entry)
+  final double? calories;
+
   TimelineEntry({
     this.id,
     required this.type,
@@ -29,6 +33,7 @@ class TimelineEntry {
     this.exerciseDescription,
     this.exerciseMinutes,
     this.waterOz,
+    this.calories,
   });
 
   /// True for entry types after which there's an optimal 3-4hr window to
@@ -49,6 +54,7 @@ class TimelineEntry {
     String? exerciseDescription,
     int? exerciseMinutes,
     double? waterOz,
+    double? calories,
   }) {
     return TimelineEntry(
       id: id ?? this.id,
@@ -61,6 +67,7 @@ class TimelineEntry {
       exerciseDescription: exerciseDescription ?? this.exerciseDescription,
       exerciseMinutes: exerciseMinutes ?? this.exerciseMinutes,
       waterOz: waterOz ?? this.waterOz,
+      calories: calories ?? this.calories,
     );
   }
 
@@ -76,6 +83,7 @@ class TimelineEntry {
       'exercise_description': exerciseDescription,
       'exercise_minutes': exerciseMinutes,
       'water_oz': waterOz,
+      'calories': calories,
     };
   }
 
@@ -91,6 +99,7 @@ class TimelineEntry {
       exerciseDescription: map['exercise_description'] as String?,
       exerciseMinutes: map['exercise_minutes'] as int?,
       waterOz: (map['water_oz'] as num?)?.toDouble(),
+      calories: (map['calories'] as num?)?.toDouble(),
     );
   }
 }

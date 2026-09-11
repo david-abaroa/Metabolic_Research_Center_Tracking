@@ -15,3 +15,8 @@ double estimateMealCalories({double? proteinGrams, double? veggieGrams}) {
   return (proteinGrams ?? 0) * proteinKcalPerGram +
       (veggieGrams ?? 0) * veggieKcalPerGram;
 }
+
+String formatNum(double v) {
+  if (v == v.roundToDouble()) return v.toStringAsFixed(0);
+  return v.toStringAsFixed(1);
+}

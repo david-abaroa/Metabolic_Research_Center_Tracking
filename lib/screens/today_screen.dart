@@ -5,6 +5,7 @@ import '../models/timeline_entry.dart';
 import '../widgets/timeline_tile.dart';
 import '../widgets/add_entry_sheet.dart';
 import '../widgets/timeline_painter.dart';
+import 'settings_screen.dart';
 import 'summary_screen.dart';
 
 class TodayScreen extends StatefulWidget {
@@ -97,6 +98,19 @@ class _TodayScreenState extends State<TodayScreen> {
     }).toList();
   }
 
+  /// Tapping empty space on the timeline opens the add-entry sheet
+  /// pre-filled with the time that was tapped.
+  void _onTimelineTap(TapUpDetails details) {
+    final dx = details.localPosition.dx;
+    final dy = details.localPosition.dy;
+    if (dx < timelineLeftMargin) return;
+    final totalMinutes = (dy / hourHeight * 60).clamp(0.0, 24 * 60 - 1);
+    final hour = totalMinutes ~/ 60;
+    final minute = (totalMinutes % 60).round().clamp(0, 59);
+    showAddEntrySheet(context, _load,
+        initialTime: TimeOfDay(hour: hour.toInt(), minute: minute));
+  }
+
   @override
   Widget build(BuildContext context) {
     final today = DateFormat('EEEE, MMM d').format(DateTime.now());
@@ -130,47 +144,65 @@ class _TodayScreenState extends State<TodayScreen> {
             onPressed: () =>
                 showDaySummarySheet(context, DateTime.now(), _entries),
           ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => showSettingsSheet(context),
+          ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _entries.isEmpty
-              ? const Center(child: Text('Nothing logged yet. Tap + to add.'))
-              : SingleChildScrollView(
-                  controller: _scrollController,
-                  child: SizedBox(
-                    height: canvasHeight,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: TimelinePainter(
-                              optimalWindows: _optimalWindows(_entries),
-                              gridColor: colorScheme.outlineVariant,
-                              labelColor: colorScheme.onSurfaceVariant,
-                              optimalColor:
-                                  colorScheme.tertiary.withOpacity(0.16),
-                              nowMinutes: minutesSinceMidnight(DateTime.now()),
-                            ),
+          : SingleChildScrollView(
+              controller: _scrollController,
+              child: SizedBox(
+                height: canvasHeight,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapUp: _onTimelineTap,
+                        child: CustomPaint(
+                          painter: TimelinePainter(
+                            optimalWindows: _optimalWindows(_entries),
+                            gridColor: colorScheme.outlineVariant,
+                            labelColor: colorScheme.onSurfaceVariant,
+                            optimalColor:
+                                colorScheme.tertiary.withOpacity(0.16),
+                            nowMinutes: minutesSinceMidnight(DateTime.now()),
                           ),
                         ),
-                        for (final e in sorted)
-                          Positioned(
-                            top: positions[e.id!],
-                            left: timelineLeftMargin + 8,
-                            right: 8,
-                            child: TimelineTile(
-                              entry: e,
-                              onDelete: () => _delete(e.id!),
-                              onTap: () async {
-                                await showEntryDetailSheet(context, e, _load);
-                              },
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
-                  ),
+                    for (final e in sorted)
+                      Positioned(
+                        top: positions[e.id!],
+                        left: timelineLeftMargin + 8,
+                        right: 8,
+                        child: TimelineTile(
+                          entry: e,
+                          onDelete: () => _delete(e.id!),
+                          onTap: () async {
+                            await showEntryDetailSheet(context, e, _load);
+                          },
+                        ),
+                      ),
+                    if (_entries.isEmpty)
+                      const Positioned(
+                        top: 24,
+                        left: 0,
+                        right: 0,
+                        child: IgnorePointer(
+                          child: Center(
+                            child: Text('Nothing logged yet. Tap the timeline to add.'),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
+              ),
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => showAddEntrySheet(context, _load),
         child: const Icon(Icons.add),

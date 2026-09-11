@@ -4,7 +4,8 @@ import '../models/timeline_entry.dart';
 import '../utils/units.dart';
 import 'dual_unit_field.dart';
 
-Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved) async {
+Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved,
+    {TimeOfDay? initialTime}) async {
   await showModalBottomSheet(
     context: context,
     builder: (ctx) {
@@ -13,33 +14,37 @@ Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved) async
           children: [
             _optionTile(ctx, Icons.wb_sunny, Colors.orange, 'Woke up', () async {
               Navigator.pop(ctx);
-              await _quickAdd(context, EntryType.wake, onSaved);
+              await _quickAdd(context, EntryType.wake, onSaved,
+                  initialTime: initialTime);
             }),
             _optionTile(
                 ctx, Icons.local_drink, Colors.blue, 'Protein drink', () async {
               Navigator.pop(ctx);
-              await _quickAdd(context, EntryType.proteinDrink, onSaved);
+              await _showProteinForm(context, EntryType.proteinDrink, onSaved,
+                  initialTime: initialTime);
             }),
             _optionTile(ctx, Icons.icecream, Colors.brown, 'Protein bar', () async {
               Navigator.pop(ctx);
-              await _quickAdd(context, EntryType.proteinBar, onSaved);
+              await _showProteinForm(context, EntryType.proteinBar, onSaved,
+                  initialTime: initialTime);
             }),
             _optionTile(ctx, Icons.restaurant, Colors.green, 'Meal', () async {
               Navigator.pop(ctx);
-              await _showMealForm(context, onSaved);
+              await _showMealForm(context, onSaved, initialTime: initialTime);
             }),
             _optionTile(
                 ctx, Icons.directions_run, Colors.red, 'Exercise', () async {
               Navigator.pop(ctx);
-              await _showExerciseForm(context, onSaved);
+              await _showExerciseForm(context, onSaved, initialTime: initialTime);
             }),
             _optionTile(ctx, Icons.water_drop, Colors.cyan, 'Water', () async {
               Navigator.pop(ctx);
-              await _showWaterForm(context, onSaved);
+              await _showWaterForm(context, onSaved, initialTime: initialTime);
             }),
             _optionTile(ctx, Icons.bedtime, Colors.indigo, 'Bed time', () async {
               Navigator.pop(ctx);
-              await _quickAdd(context, EntryType.bed, onSaved);
+              await _quickAdd(context, EntryType.bed, onSaved,
+                  initialTime: initialTime);
             }),
           ],
         ),
@@ -61,9 +66,11 @@ Future<void> showEntryDetailSheet(
     case EntryType.water:
       await _showWaterForm(context, onSaved, existing: entry);
       return;
-    case EntryType.wake:
     case EntryType.proteinDrink:
     case EntryType.proteinBar:
+      await _showProteinForm(context, entry.type, onSaved, existing: entry);
+      return;
+    case EntryType.wake:
     case EntryType.bed:
       await _showSimpleEditForm(context, entry, onSaved);
       return;
@@ -98,15 +105,16 @@ Future<void> _deleteAndClose(
 }
 
 Future<void> _quickAdd(
-    BuildContext context, EntryType type, VoidCallback onSaved) async {
-  final time = await _pickTime(context);
+    BuildContext context, EntryType type, VoidCallback onSaved,
+    {TimeOfDay? initialTime}) async {
+  final time = await _pickTime(context, initial: initialTime);
   if (time == null) return;
   final entry = TimelineEntry(type: type, timestamp: _combineToday(time));
   await DatabaseHelper.instance.insertEntry(entry);
   onSaved();
 }
 
-/// Time-only edit sheet for wake / protein drink / protein bar / bed time.
+/// Time-only edit sheet for wake / bed time.
 Future<void> _showSimpleEditForm(
     BuildContext context, TimelineEntry entry, VoidCallback onSaved) async {
   TimeOfDay time = TimeOfDay.fromDateTime(entry.timestamp);
@@ -167,11 +175,147 @@ Future<void> _showSimpleEditForm(
   );
 }
 
-Future<void> _showWaterForm(BuildContext context, VoidCallback onSaved,
-    {TimelineEntry? existing}) async {
+/// Add/edit sheet for protein bar & protein drink — pre-filled from the
+/// user's saved defaults (see Settings), with a "Change values" toggle to
+/// override calories/protein for just this entry.
+Future<void> _showProteinForm(
+    BuildContext context, EntryType type, VoidCallback onSaved,
+    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+  final settings = await DatabaseHelper.instance.getSettings();
+  final defaults =
+      type == EntryType.proteinBar ? settings.proteinBar : settings.proteinDrink;
+  final label = type == EntryType.proteinBar ? 'Protein bar' : 'Protein drink';
+
+  if (!context.mounted) return;
+
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
-      : TimeOfDay.now();
+      : (initialTime ?? TimeOfDay.now());
+  double proteinGrams = existing?.proteinGrams ?? defaults.proteinGrams;
+  double calories = existing?.calories ?? defaults.calories;
+  bool customizing = existing != null &&
+      (existing.proteinGrams != defaults.proteinGrams ||
+          existing.calories != defaults.calories);
+  final caloriesCtrl = TextEditingController(text: formatNum(calories));
+
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, setState) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(existing == null ? 'Add $label' : 'Edit $label',
+                  style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Time: ${time.format(ctx)}'),
+                trailing: const Icon(Icons.access_time),
+                onTap: () async {
+                  final t = await _pickTime(context, initial: time);
+                  if (t != null) setState(() => time = t);
+                },
+              ),
+              const SizedBox(height: 8),
+              if (!customizing) ...[
+                Text(
+                  '${formatNum(proteinGrams)}g protein • ${formatNum(calories)} kcal (default)',
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Change values'),
+                    onPressed: () => setState(() => customizing = true),
+                  ),
+                ),
+              ] else ...[
+                DualUnitField(
+                  label: 'Protein',
+                  initialGrams: proteinGrams,
+                  onGramsChanged: (g) => proteinGrams = g ?? 0,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: caloriesCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Calories (kcal)'),
+                  onChanged: (v) => calories = double.tryParse(v) ?? calories,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () => setState(() {
+                      customizing = false;
+                      proteinGrams = defaults.proteinGrams;
+                      calories = defaults.calories;
+                      caloriesCtrl.text = formatNum(calories);
+                    }),
+                    child: const Text('Reset to default'),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (existing != null) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Delete'),
+                        onPressed: () =>
+                            _deleteAndClose(ctx, existing.id!, onSaved),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        final entry = TimelineEntry(
+                          id: existing?.id,
+                          type: type,
+                          timestamp: _combineToday(time),
+                          proteinGrams: proteinGrams,
+                          calories: calories,
+                        );
+                        if (existing == null) {
+                          await DatabaseHelper.instance.insertEntry(entry);
+                        } else {
+                          await DatabaseHelper.instance.updateEntry(entry);
+                        }
+                        onSaved();
+                        Navigator.pop(ctx);
+                      },
+                      child: Text('Save $label'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      });
+    },
+  );
+}
+
+Future<void> _showWaterForm(BuildContext context, VoidCallback onSaved,
+    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+  TimeOfDay time = existing != null
+      ? TimeOfDay.fromDateTime(existing.timestamp)
+      : (initialTime ?? TimeOfDay.now());
   final ozCtrl = TextEditingController(
       text: existing?.waterOz != null ? existing!.waterOz!.toStringAsFixed(1) : '');
 
@@ -276,12 +420,12 @@ Future<void> _showWaterForm(BuildContext context, VoidCallback onSaved,
 }
 
 Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
-    {TimelineEntry? existing}) async {
+    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
   final proteinOptions = await DatabaseHelper.instance.proteinOptions();
   final veggieOptions = await DatabaseHelper.instance.veggieOptions();
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
-      : TimeOfDay.now();
+      : (initialTime ?? TimeOfDay.now());
   String? protein = existing?.proteinName;
   String? veggie = existing?.veggieName;
   double? proteinGrams = existing?.proteinGrams;
@@ -466,10 +610,10 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
 }
 
 Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved,
-    {TimelineEntry? existing}) async {
+    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
-      : TimeOfDay.now();
+      : (initialTime ?? TimeOfDay.now());
   final descCtrl = TextEditingController(text: existing?.exerciseDescription ?? '');
   final minutesCtrl =
       TextEditingController(text: existing?.exerciseMinutes?.toString() ?? '');

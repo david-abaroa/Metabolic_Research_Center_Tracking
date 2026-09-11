@@ -23,6 +23,16 @@ const Map<EntryType, EntryStyle> entryStyles = {
 
 String entrySubtitle(TimelineEntry entry) {
   switch (entry.type) {
+    case EntryType.proteinDrink:
+    case EntryType.proteinBar:
+      final parts = <String>[];
+      if (entry.proteinGrams != null) {
+        parts.add('${entry.proteinGrams!.toStringAsFixed(0)}g protein');
+      }
+      if (entry.calories != null) {
+        parts.add('${entry.calories!.toStringAsFixed(0)} kcal');
+      }
+      return parts.join(' • ');
     case EntryType.meal:
       final parts = <String>[];
       if (entry.proteinName != null) {
