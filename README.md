@@ -1,10 +1,10 @@
 # Daily Timeline
 
 A single-tab Android app (built with Flutter) for logging a handful of daily
-events — wake up, protein drink, protein bar, meals, exercise, water, bed
-time — on an hour-gridded timeline that positions each entry at its actual
-time of day. All data is stored on-device in a local SQLite database via
-`sqflite`; nothing leaves the phone.
+events — wake up, protein drink, protein bar, meals, exercise, water,
+tirzepatide, pills, bed time — on an hour-gridded timeline that positions
+each entry at its actual time of day. All data is stored on-device in a
+local SQLite database via `sqflite`; nothing leaves the phone.
 
 ## Running it
 
@@ -26,17 +26,23 @@ connection: `flutter build apk --release`, then install the file at
 
 ## How it works
 
-- `lib/models/timeline_entry.dart` — the data model for one timeline entry
-  (includes `water` as an entry type, plus a `calories` field used by
-  protein bar/drink entries)
-- `lib/models/app_settings.dart` — the default calories + protein grams
-  used when quick-logging a protein bar or protein drink
+- `lib/models/timeline_entry.dart` — the data model for one timeline entry:
+  `water`, `tirzepatide` (dose + unit) and `pills` (a list of `PillDose`,
+  stored as JSON) as entry types, plus a `calories` field used by protein
+  bar/drink entries
+- `lib/models/app_settings.dart` — the default calories + protein grams for
+  protein bar/drink, and the default unit ('mg'/'ml') + dose for
+  tirzepatide, all editable from Settings
+- `lib/models/pill_type.dart` — `PillType` (a configurable pill + the count
+  you normally take, managed in Settings) and `PillDose` (what actually got
+  logged on a pills entry)
 - `lib/db/database_helper.dart` — SQLite setup: an `entries` table plus
   `protein_options` / `veggie_options` tables that grow automatically every
-  time you type a new protein or veggie name into a meal, and a single-row
-  `settings` table for the protein bar/drink defaults; also has
-  `updateEntry` (for editing) and `mostRecentBedBefore` (for sleep-duration
-  estimates)
+  time you type a new protein or veggie name into a meal, a single-row
+  `settings` table for the protein bar/drink/tirzepatide defaults, and a
+  `pill_types` table (seeded with 2 MRC-6, 2 Fish Oil, 2 Enhancer, 2
+  Corti-Trim on first run); also has `updateEntry` (for editing) and
+  `mostRecentBedBefore` (for sleep-duration estimates)
 - `lib/screens/today_screen.dart` — the single tab: an hour-gridded,
   scrollable timeline canvas. Entries are positioned vertically at their
   actual time of day (colliding entries nudge apart slightly to stay
@@ -47,20 +53,24 @@ connection: `flutter build apk --release`, then install the file at
   dotted hourly gridlines and the shaded "optimal window" bands (3-4 hours
   after any meal/protein entry — a rough follow-up-meal timing cue)
 - `lib/widgets/add_entry_sheet.dart` — the "+" button (or tapping the
-  timeline) opens a picker for the 7 entry types. Protein bar/drink use the
-  saved defaults from Settings with a "Change values" toggle to override
-  calories/protein for just that entry. Also powers `showEntryDetailSheet`,
-  used when tapping an existing timeline entry to view/edit/delete it
+  timeline) opens a picker for the 9 entry types. Protein bar/drink and
+  tirzepatide use the saved defaults from Settings with a "Change values"
+  toggle to override them for just that entry; pills shows a checkbox per
+  configured pill type (all checked by default), logging each checked
+  pill's configured count. Also powers `showEntryDetailSheet`, used when
+  tapping an existing timeline entry to view/edit/delete it
 - `lib/widgets/dual_unit_field.dart` — linked oz/gram input pair used for
   meal and protein bar/drink amounts; typing into either field updates the
   other
 - `lib/widgets/timeline_tile.dart` — renders each entry as an icon + time +
   detail line; tap to edit, swipe to delete
-- `lib/screens/settings_screen.dart` — the Settings sheet for editing the
-  protein bar/drink defaults
+- `lib/screens/settings_screen.dart` — the Settings sheet: protein bar/drink
+  and tirzepatide defaults, plus pill-type management (add/edit
+  count/delete — changes there apply immediately, unlike the other
+  defaults which need "Save settings")
 - `lib/screens/summary_screen.dart` — the day-summary bottom sheet: meal
   count, estimated calories, protein/veggie totals, water, exercise
-  minutes, sleep duration
+  minutes, sleep duration, tirzepatide dose totals, pill counts
 - `lib/utils/units.dart` — oz↔gram conversion and the calorie-estimate
   formula (protein ~4 kcal/g, veggies ~0.3 kcal/g for meals — a rough
   macro-based guess, not a food database; protein bars/drinks use their

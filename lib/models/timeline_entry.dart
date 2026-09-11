@@ -1,4 +1,17 @@
-enum EntryType { wake, proteinDrink, proteinBar, meal, exercise, bed, water }
+import 'dart:convert';
+import 'pill_type.dart';
+
+enum EntryType {
+  wake,
+  proteinDrink,
+  proteinBar,
+  meal,
+  exercise,
+  bed,
+  water,
+  tirzepatide,
+  pills,
+}
 
 class TimelineEntry {
   final int? id;
@@ -22,6 +35,13 @@ class TimelineEntry {
   // but can be overridden per entry)
   final double? calories;
 
+  // Tirzepatide-specific
+  final double? tirzepatideDose;
+  final String? tirzepatideUnit; // 'mg' or 'ml'
+
+  // Pills-specific
+  final List<PillDose>? pills;
+
   TimelineEntry({
     this.id,
     required this.type,
@@ -34,6 +54,9 @@ class TimelineEntry {
     this.exerciseMinutes,
     this.waterOz,
     this.calories,
+    this.tirzepatideDose,
+    this.tirzepatideUnit,
+    this.pills,
   });
 
   /// True for entry types after which there's an optimal 3-4hr window to
@@ -55,6 +78,9 @@ class TimelineEntry {
     int? exerciseMinutes,
     double? waterOz,
     double? calories,
+    double? tirzepatideDose,
+    String? tirzepatideUnit,
+    List<PillDose>? pills,
   }) {
     return TimelineEntry(
       id: id ?? this.id,
@@ -68,6 +94,9 @@ class TimelineEntry {
       exerciseMinutes: exerciseMinutes ?? this.exerciseMinutes,
       waterOz: waterOz ?? this.waterOz,
       calories: calories ?? this.calories,
+      tirzepatideDose: tirzepatideDose ?? this.tirzepatideDose,
+      tirzepatideUnit: tirzepatideUnit ?? this.tirzepatideUnit,
+      pills: pills ?? this.pills,
     );
   }
 
@@ -84,10 +113,15 @@ class TimelineEntry {
       'exercise_minutes': exerciseMinutes,
       'water_oz': waterOz,
       'calories': calories,
+      'tirzepatide_dose': tirzepatideDose,
+      'tirzepatide_unit': tirzepatideUnit,
+      'pills_json':
+          pills == null ? null : jsonEncode(pills!.map((p) => p.toJson()).toList()),
     };
   }
 
   factory TimelineEntry.fromMap(Map<String, dynamic> map) {
+    final pillsJson = map['pills_json'] as String?;
     return TimelineEntry(
       id: map['id'] as int?,
       type: EntryType.values.firstWhere((e) => e.name == map['type']),
@@ -100,6 +134,13 @@ class TimelineEntry {
       exerciseMinutes: map['exercise_minutes'] as int?,
       waterOz: (map['water_oz'] as num?)?.toDouble(),
       calories: (map['calories'] as num?)?.toDouble(),
+      tirzepatideDose: (map['tirzepatide_dose'] as num?)?.toDouble(),
+      tirzepatideUnit: map['tirzepatide_unit'] as String?,
+      pills: pillsJson == null
+          ? null
+          : (jsonDecode(pillsJson) as List)
+              .map((e) => PillDose.fromJson(e as Map<String, dynamic>))
+              .toList(),
     );
   }
 }

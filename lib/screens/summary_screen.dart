@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../db/database_helper.dart';
+import '../models/pill_type.dart';
 import '../models/timeline_entry.dart';
 import '../utils/units.dart';
 
@@ -12,6 +13,9 @@ class DaySummary {
   final int totalExerciseMinutes;
   final Duration? sleepDuration;
   final double estimatedCalories;
+  final double tirzepatideMgTotal;
+  final double tirzepatideMlTotal;
+  final Map<String, int> pillTotals;
 
   DaySummary({
     required this.mealCount,
@@ -21,6 +25,9 @@ class DaySummary {
     required this.totalExerciseMinutes,
     required this.sleepDuration,
     required this.estimatedCalories,
+    required this.tirzepatideMgTotal,
+    required this.tirzepatideMlTotal,
+    required this.pillTotals,
   });
 
   static Future<DaySummary> compute(List<TimelineEntry> entries) async {
@@ -30,6 +37,9 @@ class DaySummary {
     double water = 0;
     int exerciseMinutes = 0;
     double calories = 0;
+    double tirzMg = 0;
+    double tirzMl = 0;
+    final pillTotals = <String, int>{};
     TimelineEntry? wake;
 
     for (final e in entries) {
@@ -51,6 +61,18 @@ class DaySummary {
           break;
         case EntryType.exercise:
           exerciseMinutes += e.exerciseMinutes ?? 0;
+          break;
+        case EntryType.tirzepatide:
+          if (e.tirzepatideUnit == 'ml') {
+            tirzMl += e.tirzepatideDose ?? 0;
+          } else {
+            tirzMg += e.tirzepatideDose ?? 0;
+          }
+          break;
+        case EntryType.pills:
+          for (final p in e.pills ?? const <PillDose>[]) {
+            pillTotals[p.name] = (pillTotals[p.name] ?? 0) + p.count;
+          }
           break;
         case EntryType.wake:
           wake ??= e;
@@ -76,6 +98,9 @@ class DaySummary {
       totalExerciseMinutes: exerciseMinutes,
       sleepDuration: sleep,
       estimatedCalories: calories,
+      tirzepatideMgTotal: tirzMg,
+      tirzepatideMlTotal: tirzMl,
+      pillTotals: pillTotals,
     );
   }
 }
@@ -125,6 +150,25 @@ Future<void> showDaySummarySheet(
                   summary.sleepDuration == null
                       ? '—'
                       : _formatDuration(summary.sleepDuration!)),
+              if (summary.tirzepatideMgTotal > 0 || summary.tirzepatideMlTotal > 0)
+                _statRow(
+                    ctx,
+                    Icons.vaccines,
+                    'Tirzepatide',
+                    [
+                      if (summary.tirzepatideMgTotal > 0)
+                        '${formatNum(summary.tirzepatideMgTotal)} mg',
+                      if (summary.tirzepatideMlTotal > 0)
+                        '${formatNum(summary.tirzepatideMlTotal)} ml',
+                    ].join(' + ')),
+              if (summary.pillTotals.isNotEmpty)
+                _statRow(
+                    ctx,
+                    Icons.medication,
+                    'Pills',
+                    summary.pillTotals.entries
+                        .map((e) => '${e.value} ${e.key}')
+                        .join(', ')),
               const SizedBox(height: 12),
               Text(
                 'Estimated calories: meals use a rough guide from logged '

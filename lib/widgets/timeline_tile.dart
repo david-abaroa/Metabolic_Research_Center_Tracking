@@ -19,6 +19,9 @@ const Map<EntryType, EntryStyle> entryStyles = {
       EntryStyle(Icons.directions_run, Colors.red, 'Exercise'),
   EntryType.bed: EntryStyle(Icons.bedtime, Colors.indigo, 'Bed time'),
   EntryType.water: EntryStyle(Icons.water_drop, Colors.cyan, 'Water'),
+  EntryType.tirzepatide:
+      EntryStyle(Icons.vaccines, Colors.deepPurple, 'Tirzepatide'),
+  EntryType.pills: EntryStyle(Icons.medication, Colors.pink, 'Pills'),
 };
 
 String entrySubtitle(TimelineEntry entry) {
@@ -51,6 +54,12 @@ String entrySubtitle(TimelineEntry entry) {
     case EntryType.water:
       final oz = entry.waterOz?.toStringAsFixed(1) ?? '?';
       return '$oz fl oz';
+    case EntryType.tirzepatide:
+      final dose = entry.tirzepatideDose?.toStringAsFixed(2) ?? '?';
+      return '$dose ${entry.tirzepatideUnit ?? 'mg'}';
+    case EntryType.pills:
+      if (entry.pills == null || entry.pills!.isEmpty) return 'None taken';
+      return entry.pills!.map((p) => '${p.count} ${p.name}').join(', ');
     default:
       return '';
   }

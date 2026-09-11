@@ -65,10 +65,15 @@ class _TodayScreenState extends State<TodayScreen> {
         e.veggieName != null) {
       return 78;
     }
+    if (e.type == EntryType.pills && (e.pills?.length ?? 0) > 2) {
+      return 78;
+    }
     switch (e.type) {
       case EntryType.meal:
       case EntryType.exercise:
       case EntryType.water:
+      case EntryType.tirzepatide:
+      case EntryType.pills:
         return 64;
       default:
         return 56;

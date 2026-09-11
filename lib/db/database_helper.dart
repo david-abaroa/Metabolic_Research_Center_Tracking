@@ -1,7 +1,15 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/app_settings.dart';
+import '../models/pill_type.dart';
 import '../models/timeline_entry.dart';
+
+const _defaultPillTypes = [
+  {'name': 'MRC-6', 'default_count': 2},
+  {'name': 'Fish Oil', 'default_count': 2},
+  {'name': 'Enhancer', 'default_count': 2},
+  {'name': 'Corti-Trim', 'default_count': 2},
+];
 
 class DatabaseHelper {
   DatabaseHelper._internal();
@@ -19,7 +27,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'timeline.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE entries (
@@ -33,7 +41,10 @@ class DatabaseHelper {
             exercise_description TEXT,
             exercise_minutes INTEGER,
             water_oz REAL,
-            calories REAL
+            calories REAL,
+            tirzepatide_dose REAL,
+            tirzepatide_unit TEXT,
+            pills_json TEXT
           )
         ''');
         await db.execute('''
@@ -54,9 +65,19 @@ class DatabaseHelper {
             protein_bar_calories REAL,
             protein_bar_protein_grams REAL,
             protein_drink_calories REAL,
-            protein_drink_protein_grams REAL
+            protein_drink_protein_grams REAL,
+            tirzepatide_unit TEXT,
+            tirzepatide_dose REAL
           )
         ''');
+        await db.execute('''
+          CREATE TABLE pill_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            default_count INTEGER NOT NULL
+          )
+        ''');
+        await _seedDefaultPillTypes(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -74,8 +95,29 @@ class DatabaseHelper {
             )
           ''');
         }
+        if (oldVersion < 4) {
+          await db.execute('ALTER TABLE entries ADD COLUMN tirzepatide_dose REAL');
+          await db.execute('ALTER TABLE entries ADD COLUMN tirzepatide_unit TEXT');
+          await db.execute('ALTER TABLE entries ADD COLUMN pills_json TEXT');
+          await db.execute('ALTER TABLE settings ADD COLUMN tirzepatide_unit TEXT');
+          await db.execute('ALTER TABLE settings ADD COLUMN tirzepatide_dose REAL');
+          await db.execute('''
+            CREATE TABLE pill_types (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT UNIQUE NOT NULL,
+              default_count INTEGER NOT NULL
+            )
+          ''');
+          await _seedDefaultPillTypes(db);
+        }
       },
     );
+  }
+
+  Future<void> _seedDefaultPillTypes(Database db) async {
+    for (final p in _defaultPillTypes) {
+      await db.insert('pill_types', p, conflictAlgorithm: ConflictAlgorithm.ignore);
+    }
   }
 
   Future<AppSettings> getSettings() async {
@@ -96,6 +138,12 @@ class DatabaseHelper {
         proteinGrams: (r['protein_drink_protein_grams'] as num?)?.toDouble() ??
             AppSettings.defaults.proteinDrink.proteinGrams,
       ),
+      tirzepatide: TirzepatideDefaults(
+        unit: (r['tirzepatide_unit'] as String?) ??
+            AppSettings.defaults.tirzepatide.unit,
+        dose: (r['tirzepatide_dose'] as num?)?.toDouble() ??
+            AppSettings.defaults.tirzepatide.dose,
+      ),
     );
   }
 
@@ -109,9 +157,43 @@ class DatabaseHelper {
         'protein_bar_protein_grams': settings.proteinBar.proteinGrams,
         'protein_drink_calories': settings.proteinDrink.calories,
         'protein_drink_protein_grams': settings.proteinDrink.proteinGrams,
+        'tirzepatide_unit': settings.tirzepatide.unit,
+        'tirzepatide_dose': settings.tirzepatide.dose,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  Future<List<PillType>> getPillTypes() async {
+    final db = await database;
+    final rows = await db.query('pill_types', orderBy: 'id ASC');
+    return rows
+        .map((r) => PillType(
+              id: r['id'] as int,
+              name: r['name'] as String,
+              defaultCount: r['default_count'] as int,
+            ))
+        .toList();
+  }
+
+  Future<void> addPillType(String name, int defaultCount) async {
+    final db = await database;
+    await db.insert(
+      'pill_types',
+      {'name': name, 'default_count': defaultCount},
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
+
+  Future<void> updatePillTypeCount(int id, int defaultCount) async {
+    final db = await database;
+    await db.update('pill_types', {'default_count': defaultCount},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> deletePillType(int id) async {
+    final db = await database;
+    await db.delete('pill_types', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<int> insertEntry(TimelineEntry entry) async {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
+import '../models/pill_type.dart';
 import '../models/timeline_entry.dart';
 import '../utils/units.dart';
 import 'dual_unit_field.dart';
@@ -41,6 +42,15 @@ Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved,
               Navigator.pop(ctx);
               await _showWaterForm(context, onSaved, initialTime: initialTime);
             }),
+            _optionTile(
+                ctx, Icons.vaccines, Colors.deepPurple, 'Tirzepatide', () async {
+              Navigator.pop(ctx);
+              await _showTirzepatideForm(context, onSaved, initialTime: initialTime);
+            }),
+            _optionTile(ctx, Icons.medication, Colors.pink, 'Pills', () async {
+              Navigator.pop(ctx);
+              await _showPillsForm(context, onSaved, initialTime: initialTime);
+            }),
             _optionTile(ctx, Icons.bedtime, Colors.indigo, 'Bed time', () async {
               Navigator.pop(ctx);
               await _quickAdd(context, EntryType.bed, onSaved,
@@ -69,6 +79,12 @@ Future<void> showEntryDetailSheet(
     case EntryType.proteinDrink:
     case EntryType.proteinBar:
       await _showProteinForm(context, entry.type, onSaved, existing: entry);
+      return;
+    case EntryType.tirzepatide:
+      await _showTirzepatideForm(context, onSaved, existing: entry);
+      return;
+    case EntryType.pills:
+      await _showPillsForm(context, onSaved, existing: entry);
       return;
     case EntryType.wake:
     case EntryType.bed:
@@ -692,6 +708,258 @@ Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved,
                         Navigator.pop(ctx);
                       },
                       child: const Text('Save exercise'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      });
+    },
+  );
+}
+
+/// Add/edit sheet for tirzepatide — pre-filled from the saved default dose
+/// and unit (see Settings), with a "Change values" toggle to override the
+/// dose (and, if needed, the unit) for just this entry.
+Future<void> _showTirzepatideForm(BuildContext context, VoidCallback onSaved,
+    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+  final settings = await DatabaseHelper.instance.getSettings();
+  final defaults = settings.tirzepatide;
+
+  if (!context.mounted) return;
+
+  TimeOfDay time = existing != null
+      ? TimeOfDay.fromDateTime(existing.timestamp)
+      : (initialTime ?? TimeOfDay.now());
+  double dose = existing?.tirzepatideDose ?? defaults.dose;
+  String unit = existing?.tirzepatideUnit ?? defaults.unit;
+  bool customizing = existing != null &&
+      (existing.tirzepatideDose != defaults.dose ||
+          existing.tirzepatideUnit != defaults.unit);
+  final doseCtrl = TextEditingController(text: formatNum(dose));
+
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, setState) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(existing == null ? 'Add Tirzepatide' : 'Edit Tirzepatide',
+                  style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Time: ${time.format(ctx)}'),
+                trailing: const Icon(Icons.access_time),
+                onTap: () async {
+                  final t = await _pickTime(context, initial: time);
+                  if (t != null) setState(() => time = t);
+                },
+              ),
+              const SizedBox(height: 8),
+              if (!customizing) ...[
+                Text(
+                  '${formatNum(dose)} $unit (default)',
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Change values'),
+                    onPressed: () => setState(() => customizing = true),
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: doseCtrl,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'Dose'),
+                        onChanged: (v) => dose = double.tryParse(v) ?? dose,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: unit,
+                      items: const [
+                        DropdownMenuItem(value: 'mg', child: Text('mg')),
+                        DropdownMenuItem(value: 'ml', child: Text('ml')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setState(() => unit = v);
+                      },
+                    ),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () => setState(() {
+                      customizing = false;
+                      dose = defaults.dose;
+                      unit = defaults.unit;
+                      doseCtrl.text = formatNum(dose);
+                    }),
+                    child: const Text('Reset to default'),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (existing != null) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Delete'),
+                        onPressed: () =>
+                            _deleteAndClose(ctx, existing.id!, onSaved),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        final entry = TimelineEntry(
+                          id: existing?.id,
+                          type: EntryType.tirzepatide,
+                          timestamp: _combineToday(time),
+                          tirzepatideDose: dose,
+                          tirzepatideUnit: unit,
+                        );
+                        if (existing == null) {
+                          await DatabaseHelper.instance.insertEntry(entry);
+                        } else {
+                          await DatabaseHelper.instance.updateEntry(entry);
+                        }
+                        onSaved();
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Save Tirzepatide'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      });
+    },
+  );
+}
+
+/// Add/edit sheet for pills — a checkbox for every configured pill type
+/// (see Settings), checked by default, logging each checked pill's
+/// configured count.
+Future<void> _showPillsForm(BuildContext context, VoidCallback onSaved,
+    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+  final pillTypes = await DatabaseHelper.instance.getPillTypes();
+  if (!context.mounted) return;
+
+  TimeOfDay time = existing != null
+      ? TimeOfDay.fromDateTime(existing.timestamp)
+      : (initialTime ?? TimeOfDay.now());
+  final existingNames = existing?.pills?.map((p) => p.name).toSet() ?? {};
+  final checked = <String, bool>{
+    for (final p in pillTypes)
+      p.name: existing == null ? true : existingNames.contains(p.name),
+  };
+
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, setState) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(existing == null ? 'Add pills' : 'Edit pills',
+                  style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Time: ${time.format(ctx)}'),
+                trailing: const Icon(Icons.access_time),
+                onTap: () async {
+                  final t = await _pickTime(context, initial: time);
+                  if (t != null) setState(() => time = t);
+                },
+              ),
+              if (pillTypes.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('No pill types set up yet — add some in Settings.'),
+                )
+              else
+                ...pillTypes.map((p) => CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: checked[p.name] ?? false,
+                      title: Text('${p.defaultCount} ${p.name}'),
+                      onChanged: (v) =>
+                          setState(() => checked[p.name] = v ?? false),
+                    )),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (existing != null) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Delete'),
+                        onPressed: () =>
+                            _deleteAndClose(ctx, existing.id!, onSaved),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        final pills = pillTypes
+                            .where((p) => checked[p.name] ?? false)
+                            .map((p) =>
+                                PillDose(name: p.name, count: p.defaultCount))
+                            .toList();
+                        final entry = TimelineEntry(
+                          id: existing?.id,
+                          type: EntryType.pills,
+                          timestamp: _combineToday(time),
+                          pills: pills,
+                        );
+                        if (existing == null) {
+                          await DatabaseHelper.instance.insertEntry(entry);
+                        } else {
+                          await DatabaseHelper.instance.updateEntry(entry);
+                        }
+                        onSaved();
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Save pills'),
                     ),
                   ),
                 ],
