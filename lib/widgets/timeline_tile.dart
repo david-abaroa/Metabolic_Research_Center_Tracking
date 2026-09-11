@@ -12,7 +12,7 @@ class EntryStyle {
 const Map<EntryType, EntryStyle> entryStyles = {
   EntryType.wake: EntryStyle(Icons.wb_sunny, Colors.orange, 'Woke up'),
   EntryType.proteinDrink:
-      EntryStyle(Icons.local_drink, Colors.blue, 'Protein drink'),
+      EntryStyle(Icons.local_drink, Colors.brown, 'Protein drink'),
   EntryType.proteinBar: EntryStyle(Icons.icecream, Colors.brown, 'Protein bar'),
   EntryType.meal: EntryStyle(Icons.restaurant, Colors.green, 'Meal'),
   EntryType.exercise: EntryStyle(Icons.directions_run, Colors.red, 'Exercise'),
