@@ -9,54 +9,77 @@ Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved,
     {TimeOfDay? initialTime}) async {
   await showModalBottomSheet(
     context: context,
+    isScrollControlled: true,
     builder: (ctx) {
       return SafeArea(
-        child: Wrap(
-          children: [
-            _optionTile(ctx, Icons.wb_sunny, Colors.orange, 'Woke up', () async {
-              Navigator.pop(ctx);
-              await _quickAdd(context, EntryType.wake, onSaved,
-                  initialTime: initialTime);
-            }),
-            _optionTile(
-                ctx, Icons.local_drink, Colors.blue, 'Protein drink', () async {
-              Navigator.pop(ctx);
-              await _showProteinForm(context, EntryType.proteinDrink, onSaved,
-                  initialTime: initialTime);
-            }),
-            _optionTile(ctx, Icons.icecream, Colors.brown, 'Protein bar', () async {
-              Navigator.pop(ctx);
-              await _showProteinForm(context, EntryType.proteinBar, onSaved,
-                  initialTime: initialTime);
-            }),
-            _optionTile(ctx, Icons.restaurant, Colors.green, 'Meal', () async {
-              Navigator.pop(ctx);
-              await _showMealForm(context, onSaved, initialTime: initialTime);
-            }),
-            _optionTile(
-                ctx, Icons.directions_run, Colors.red, 'Exercise', () async {
-              Navigator.pop(ctx);
-              await _showExerciseForm(context, onSaved, initialTime: initialTime);
-            }),
-            _optionTile(ctx, Icons.water_drop, Colors.cyan, 'Water', () async {
-              Navigator.pop(ctx);
-              await _showWaterForm(context, onSaved, initialTime: initialTime);
-            }),
-            _optionTile(
-                ctx, Icons.vaccines, Colors.deepPurple, 'Tirzepatide', () async {
-              Navigator.pop(ctx);
-              await _showTirzepatideForm(context, onSaved, initialTime: initialTime);
-            }),
-            _optionTile(ctx, Icons.medication, Colors.pink, 'Pills', () async {
-              Navigator.pop(ctx);
-              await _showPillsForm(context, onSaved, initialTime: initialTime);
-            }),
-            _optionTile(ctx, Icons.bedtime, Colors.indigo, 'Bed time', () async {
-              Navigator.pop(ctx);
-              await _quickAdd(context, EntryType.bed, onSaved,
-                  initialTime: initialTime);
-            }),
-          ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.8,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _optionTile(ctx, Icons.wb_sunny, Colors.orange, 'Woke up',
+                    () async {
+                  Navigator.pop(ctx);
+                  await _quickAdd(context, EntryType.wake, onSaved,
+                      initialTime: initialTime);
+                }),
+                _optionTile(
+                    ctx, Icons.local_drink, Colors.blue, 'Protein drink',
+                    () async {
+                  Navigator.pop(ctx);
+                  await _showProteinForm(
+                      context, EntryType.proteinDrink, onSaved,
+                      initialTime: initialTime);
+                }),
+                _optionTile(ctx, Icons.icecream, Colors.brown, 'Protein bar',
+                    () async {
+                  Navigator.pop(ctx);
+                  await _showProteinForm(context, EntryType.proteinBar, onSaved,
+                      initialTime: initialTime);
+                }),
+                _optionTile(ctx, Icons.restaurant, Colors.green, 'Meal',
+                    () async {
+                  Navigator.pop(ctx);
+                  await _showMealForm(context, onSaved,
+                      initialTime: initialTime);
+                }),
+                _optionTile(ctx, Icons.directions_run, Colors.red, 'Exercise',
+                    () async {
+                  Navigator.pop(ctx);
+                  await _showExerciseForm(context, onSaved,
+                      initialTime: initialTime);
+                }),
+                _optionTile(ctx, Icons.water_drop, Colors.cyan, 'Water',
+                    () async {
+                  Navigator.pop(ctx);
+                  await _showWaterForm(context, onSaved,
+                      initialTime: initialTime);
+                }),
+                _optionTile(
+                    ctx, Icons.vaccines, Colors.deepPurple, 'Tirzepatide',
+                    () async {
+                  Navigator.pop(ctx);
+                  await _showTirzepatideForm(context, onSaved,
+                      initialTime: initialTime);
+                }),
+                _optionTile(ctx, Icons.medication, Colors.pink, 'Pills',
+                    () async {
+                  Navigator.pop(ctx);
+                  await _showPillsForm(context, onSaved,
+                      initialTime: initialTime);
+                }),
+                _optionTile(ctx, Icons.bedtime, Colors.indigo, 'Bed time',
+                    () async {
+                  Navigator.pop(ctx);
+                  await _quickAdd(context, EntryType.bed, onSaved,
+                      initialTime: initialTime);
+                }),
+              ],
+            ),
+          ),
         ),
       );
     },
@@ -93,11 +116,12 @@ Future<void> showEntryDetailSheet(
   }
 }
 
-Widget _optionTile(
-    BuildContext ctx, IconData icon, Color color, String label, VoidCallback onTap) {
+Widget _optionTile(BuildContext ctx, IconData icon, Color color, String label,
+    VoidCallback onTap) {
   return ListTile(
     leading: CircleAvatar(
-        backgroundColor: color.withOpacity(0.15), child: Icon(icon, color: color)),
+        backgroundColor: color.withOpacity(0.15),
+        child: Icon(icon, color: color)),
     title: Text(label),
     onTap: onTap,
   );
@@ -198,8 +222,9 @@ Future<void> _showProteinForm(
     BuildContext context, EntryType type, VoidCallback onSaved,
     {TimelineEntry? existing, TimeOfDay? initialTime}) async {
   final settings = await DatabaseHelper.instance.getSettings();
-  final defaults =
-      type == EntryType.proteinBar ? settings.proteinBar : settings.proteinDrink;
+  final defaults = type == EntryType.proteinBar
+      ? settings.proteinBar
+      : settings.proteinDrink;
   final label = type == EntryType.proteinBar ? 'Protein bar' : 'Protein drink';
 
   if (!context.mounted) return;
@@ -265,8 +290,10 @@ Future<void> _showProteinForm(
                 const SizedBox(height: 8),
                 TextField(
                   controller: caloriesCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Calories (kcal)'),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration:
+                      const InputDecoration(labelText: 'Calories (kcal)'),
                   onChanged: (v) => calories = double.tryParse(v) ?? calories,
                 ),
                 Align(
@@ -333,7 +360,9 @@ Future<void> _showWaterForm(BuildContext context, VoidCallback onSaved,
       ? TimeOfDay.fromDateTime(existing.timestamp)
       : (initialTime ?? TimeOfDay.now());
   final ozCtrl = TextEditingController(
-      text: existing?.waterOz != null ? existing!.waterOz!.toStringAsFixed(1) : '');
+      text: existing?.waterOz != null
+          ? existing!.waterOz!.toStringAsFixed(1)
+          : '');
 
   Future<void> save(double? oz) async {
     if (oz == null || oz <= 0) return;
@@ -385,7 +414,8 @@ Future<void> _showWaterForm(BuildContext context, VoidCallback onSaved,
                 const SizedBox(height: 8),
                 FilledButton.tonalIcon(
                   icon: const Icon(Icons.local_drink),
-                  label: Text('Quick bottle (${waterBottleOz.toStringAsFixed(1)} fl oz)'),
+                  label: Text(
+                      'Quick bottle (${waterBottleOz.toStringAsFixed(1)} fl oz)'),
                   onPressed: () async {
                     await save(waterBottleOz);
                     if (ctx.mounted) Navigator.pop(ctx);
@@ -399,7 +429,8 @@ Future<void> _showWaterForm(BuildContext context, VoidCallback onSaved,
                 const SizedBox(height: 12),
               TextField(
                 controller: ozCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(labelText: 'Fluid ounces'),
               ),
               const SizedBox(height: 16),
@@ -489,11 +520,12 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
                 const SizedBox(height: 8),
                 if (!addingNewProtein)
                   DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'Protein source'),
+                    decoration:
+                        const InputDecoration(labelText: 'Protein source'),
                     value: protein,
                     items: [
-                      ...proteinOptions
-                          .map((p) => DropdownMenuItem(value: p, child: Text(p))),
+                      ...proteinOptions.map(
+                          (p) => DropdownMenuItem(value: p, child: Text(p))),
                       const DropdownMenuItem(
                           value: '__new__', child: Text('+ Add new...')),
                     ],
@@ -513,7 +545,8 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
                       labelText: 'New protein name',
                       suffixIcon: IconButton(
                         icon: const Icon(Icons.close),
-                        onPressed: () => setState(() => addingNewProtein = false),
+                        onPressed: () =>
+                            setState(() => addingNewProtein = false),
                       ),
                     ),
                   ),
@@ -529,8 +562,8 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
                     decoration: const InputDecoration(labelText: 'Veggie'),
                     value: veggie,
                     items: [
-                      ...veggieOptions
-                          .map((v) => DropdownMenuItem(value: v, child: Text(v))),
+                      ...veggieOptions.map(
+                          (v) => DropdownMenuItem(value: v, child: Text(v))),
                       const DropdownMenuItem(
                           value: '__new__', child: Text('+ Add new...')),
                     ],
@@ -550,7 +583,8 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
                       labelText: 'New veggie name',
                       suffixIcon: IconButton(
                         icon: const Icon(Icons.close),
-                        onPressed: () => setState(() => addingNewVeggie = false),
+                        onPressed: () =>
+                            setState(() => addingNewVeggie = false),
                       ),
                     ),
                   ),
@@ -580,8 +614,9 @@ Future<void> _showMealForm(BuildContext context, VoidCallback onSaved,
                           final proteinName = addingNewProtein
                               ? newProteinCtrl.text.trim()
                               : protein;
-                          final veggieName =
-                              addingNewVeggie ? newVeggieCtrl.text.trim() : veggie;
+                          final veggieName = addingNewVeggie
+                              ? newVeggieCtrl.text.trim()
+                              : veggie;
                           if (proteinName != null && proteinName.isNotEmpty) {
                             await DatabaseHelper.instance
                                 .addProteinOption(proteinName);
@@ -630,7 +665,8 @@ Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved,
   TimeOfDay time = existing != null
       ? TimeOfDay.fromDateTime(existing.timestamp)
       : (initialTime ?? TimeOfDay.now());
-  final descCtrl = TextEditingController(text: existing?.exerciseDescription ?? '');
+  final descCtrl =
+      TextEditingController(text: existing?.exerciseDescription ?? '');
   final minutesCtrl =
       TextEditingController(text: existing?.exerciseMinutes?.toString() ?? '');
 
@@ -664,14 +700,15 @@ Future<void> _showExerciseForm(BuildContext context, VoidCallback onSaved,
               ),
               TextField(
                 controller: descCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'Description (e.g. Run, Lift)'),
+                decoration: const InputDecoration(
+                    labelText: 'Description (e.g. Run, Lift)'),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: minutesCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Duration (minutes)'),
+                decoration:
+                    const InputDecoration(labelText: 'Duration (minutes)'),
               ),
               const SizedBox(height: 20),
               Row(
@@ -788,8 +825,8 @@ Future<void> _showTirzepatideForm(BuildContext context, VoidCallback onSaved,
                     Expanded(
                       child: TextField(
                         controller: doseCtrl,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
                         decoration: const InputDecoration(labelText: 'Dose'),
                         onChanged: (v) => dose = double.tryParse(v) ?? dose,
                       ),
@@ -913,7 +950,8 @@ Future<void> _showPillsForm(BuildContext context, VoidCallback onSaved,
               if (pillTypes.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('No pill types set up yet — add some in Settings.'),
+                  child:
+                      Text('No pill types set up yet — add some in Settings.'),
                 )
               else
                 ...pillTypes.map((p) => CheckboxListTile(
