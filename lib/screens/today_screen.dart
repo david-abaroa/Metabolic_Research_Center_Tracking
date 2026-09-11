@@ -95,6 +95,19 @@ class _TodayScreenState extends State<TodayScreen> {
     _load();
   }
 
+  /// Switching to the day view via the bottom bar (rather than tapping a
+  /// specific day) doesn't change the date, so `_load` wouldn't otherwise
+  /// run — but the day view's ScrollView was just torn down and rebuilt
+  /// while a week view was showing, so it needs repositioning (and its
+  /// data may be stale if something changed while a week view was active).
+  void _switchViewMode(ViewMode mode) {
+    setState(() {
+      _viewMode = mode;
+      if (mode == ViewMode.day) _scrolledToNow = false;
+    });
+    if (mode == ViewMode.day) _load();
+  }
+
   Future<void> _delete(int id) async {
     await DatabaseHelper.instance.deleteEntry(id);
     _load();
@@ -273,7 +286,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 ],
                 selected: {_viewMode},
                 showSelectedIcon: false,
-                onSelectionChanged: (s) => setState(() => _viewMode = s.first),
+                onSelectionChanged: (s) => _switchViewMode(s.first),
               ),
             ),
           ),
