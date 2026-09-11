@@ -70,6 +70,15 @@ connection: `flutter build apk --release`, then install the file at
   small colored icon used in the day view — tap one to open/edit it;
   tapping elsewhere on a row jumps to the day view for that date. A key
   at the bottom labels every icon plus the star/circle badge
+- `lib/screens/week_pdf_export.dart` — the Export button (week/grid views
+  only) builds a two-page PDF — a Week Summary page and a Week Timeline
+  grid page, mirroring those two views — then hands it to
+  `Printing.sharePdf` to open the native Android share sheet. Uses a
+  vendored copy of the `pdf` package (`vendor/pdf`, wired in via
+  `dependency_overrides` in `pubspec.yaml`) with its background-isolate
+  `save()` path disabled: that path silently produced truncated/corrupted
+  PDFs on-device (bytes returned successfully, but with most content
+  missing) while running the identical layout inline is always correct
 - `lib/widgets/tirz_gac_badge.dart` — `TirzGacBadge`, the small star
   (filled if tirzepatide was taken, outlined otherwise) circled in teal
   if GAC was also taken; shared by the week summary and week timeline

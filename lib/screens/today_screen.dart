@@ -7,6 +7,7 @@ import '../widgets/add_entry_sheet.dart';
 import '../widgets/timeline_painter.dart';
 import 'settings_screen.dart';
 import 'summary_screen.dart';
+import 'week_pdf_export.dart';
 import 'week_summary_view.dart';
 import 'week_timeline_view.dart';
 
@@ -241,7 +242,12 @@ class _TodayScreenState extends State<TodayScreen> {
               onPressed: () =>
                   showDaySummarySheet(context, _selectedDate, _entries),
             ),
-          ],
+          ] else
+            IconButton(
+              icon: const Icon(Icons.ios_share),
+              tooltip: 'Export week as PDF',
+              onPressed: () => exportWeekAsPdf(context, _weekStart),
+            ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',

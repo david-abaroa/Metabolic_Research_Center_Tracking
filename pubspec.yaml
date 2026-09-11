@@ -12,12 +12,20 @@ dependencies:
   sqflite: ^2.3.0
   path: ^1.9.0
   intl: ^0.19.0
+  pdf: ^3.13.0
+  printing: ^5.15.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
   sqflite_common_ffi: ^2.4.3
+
+# Vendored copy of pdf 3.13.0 with the background-isolate save() path
+# disabled — see vendor/pdf/lib/src/pdf/io/vm.dart for why.
+dependency_overrides:
+  pdf:
+    path: vendor/pdf
 
 flutter:
   uses-material-design: true
