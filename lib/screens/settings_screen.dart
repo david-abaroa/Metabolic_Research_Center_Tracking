@@ -19,6 +19,8 @@ Future<void> showSettingsSheet(BuildContext context) async {
   final tirzDoseCtrl =
       TextEditingController(text: formatNum(settings.tirzepatide.dose));
   String tirzUnit = settings.tirzepatide.unit;
+  final gacMlCtrl =
+      TextEditingController(text: formatNum(settings.gacDefaultMl));
   final newPillNameCtrl = TextEditingController();
   final newPillCountCtrl = TextEditingController(text: '2');
 
@@ -40,6 +42,7 @@ Future<void> showSettingsSheet(BuildContext context) async {
         unit: tirzUnit,
         dose: double.tryParse(tirzDoseCtrl.text) ?? settings.tirzepatide.dose,
       ),
+      gacDefaultMl: double.tryParse(gacMlCtrl.text) ?? settings.gacDefaultMl,
     );
     await DatabaseHelper.instance.saveSettings(newSettings);
   }
@@ -57,7 +60,8 @@ Future<void> showSettingsSheet(BuildContext context) async {
           return Container(
             margin: const EdgeInsets.only(bottom: 10),
             decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(ctx).colorScheme.outlineVariant),
+              border:
+                  Border.all(color: Theme.of(ctx).colorScheme.outlineVariant),
               borderRadius: BorderRadius.circular(12),
             ),
             clipBehavior: Clip.antiAlias,
@@ -90,8 +94,7 @@ Future<void> showSettingsSheet(BuildContext context) async {
                 const SizedBox(height: 16),
                 section(
                   title: 'Protein bar',
-                  subtitle:
-                      '${formatNum(settings.proteinBar.calories)} kcal • '
+                  subtitle: '${formatNum(settings.proteinBar.calories)} kcal • '
                       '${formatNum(settings.proteinBar.proteinGrams)}g protein',
                   children: [
                     Row(
@@ -101,8 +104,8 @@ Future<void> showSettingsSheet(BuildContext context) async {
                             controller: barCalCtrl,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
-                            decoration:
-                                const InputDecoration(labelText: 'Calories (kcal)'),
+                            decoration: const InputDecoration(
+                                labelText: 'Calories (kcal)'),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -132,8 +135,8 @@ Future<void> showSettingsSheet(BuildContext context) async {
                             controller: drinkCalCtrl,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
-                            decoration:
-                                const InputDecoration(labelText: 'Calories (kcal)'),
+                            decoration: const InputDecoration(
+                                labelText: 'Calories (kcal)'),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -167,8 +170,8 @@ Future<void> showSettingsSheet(BuildContext context) async {
                             controller: tirzDoseCtrl,
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
-                            decoration:
-                                const InputDecoration(labelText: 'Default dose'),
+                            decoration: const InputDecoration(
+                                labelText: 'Default dose'),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -183,6 +186,24 @@ Future<void> showSettingsSheet(BuildContext context) async {
                           },
                         ),
                       ],
+                    ),
+                  ],
+                ),
+                section(
+                  title: 'GAC',
+                  subtitle: '${formatNum(settings.gacDefaultMl)} ml',
+                  children: [
+                    Text(
+                      'Default amount used when you quick-log GAC.',
+                      style: Theme.of(ctx).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: gacMlCtrl,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Default amount (ml)'),
                     ),
                   ],
                 ),
@@ -233,8 +254,8 @@ Future<void> showSettingsSheet(BuildContext context) async {
                               onPressed: () async {
                                 await DatabaseHelper.instance
                                     .deletePillType(p.id!);
-                                final updated =
-                                    await DatabaseHelper.instance.getPillTypes();
+                                final updated = await DatabaseHelper.instance
+                                    .getPillTypes();
                                 setState(() => pillTypes = updated);
                               },
                             ),
@@ -257,7 +278,8 @@ Future<void> showSettingsSheet(BuildContext context) async {
                           child: TextField(
                             controller: newPillCountCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Count'),
+                            decoration:
+                                const InputDecoration(labelText: 'Count'),
                           ),
                         ),
                         IconButton(

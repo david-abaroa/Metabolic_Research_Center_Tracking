@@ -99,7 +99,8 @@ class _TodayScreenState extends State<TodayScreen> {
     return entries.where((e) => e.startsOptimalWindow).map((e) {
       final start = minutesSinceMidnight(e.timestamp) + 180;
       final end = minutesSinceMidnight(e.timestamp) + 240;
-      return OptimalWindow(start.clamp(0, dayMinutes), end.clamp(0, dayMinutes));
+      return OptimalWindow(
+          start.clamp(0, dayMinutes), end.clamp(0, dayMinutes));
     }).toList();
   }
 
@@ -200,7 +201,8 @@ class _TodayScreenState extends State<TodayScreen> {
                         right: 0,
                         child: IgnorePointer(
                           child: Center(
-                            child: Text('Nothing logged yet. Tap the timeline to add.'),
+                            child: Text(
+                                'Nothing logged yet. Tap the timeline to add.'),
                           ),
                         ),
                       ),

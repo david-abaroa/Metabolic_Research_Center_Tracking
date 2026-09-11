@@ -20,16 +20,19 @@ class AppSettings {
   final ProteinDefaults proteinBar;
   final ProteinDefaults proteinDrink;
   final TirzepatideDefaults tirzepatide;
+  final double gacDefaultMl;
 
   const AppSettings({
     required this.proteinBar,
     required this.proteinDrink,
     required this.tirzepatide,
+    required this.gacDefaultMl,
   });
 
   static const defaults = AppSettings(
     proteinBar: ProteinDefaults(calories: 200, proteinGrams: 20),
     proteinDrink: ProteinDefaults(calories: 160, proteinGrams: 25),
     tirzepatide: TirzepatideDefaults(unit: 'mg', dose: 3),
+    gacDefaultMl: 100,
   );
 }

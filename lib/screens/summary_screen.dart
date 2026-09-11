@@ -16,6 +16,7 @@ class DaySummary {
   final double tirzepatideMgTotal;
   final double tirzepatideMlTotal;
   final Map<String, int> pillTotals;
+  final double gacMlTotal;
 
   DaySummary({
     required this.mealCount,
@@ -28,6 +29,7 @@ class DaySummary {
     required this.tirzepatideMgTotal,
     required this.tirzepatideMlTotal,
     required this.pillTotals,
+    required this.gacMlTotal,
   });
 
   static Future<DaySummary> compute(List<TimelineEntry> entries) async {
@@ -39,6 +41,7 @@ class DaySummary {
     double calories = 0;
     double tirzMg = 0;
     double tirzMl = 0;
+    double gacMl = 0;
     final pillTotals = <String, int>{};
     TimelineEntry? wake;
 
@@ -74,6 +77,9 @@ class DaySummary {
             pillTotals[p.name] = (pillTotals[p.name] ?? 0) + p.count;
           }
           break;
+        case EntryType.gac:
+          gacMl += e.gacMl ?? 0;
+          break;
         case EntryType.wake:
           wake ??= e;
           break;
@@ -84,7 +90,8 @@ class DaySummary {
 
     Duration? sleep;
     if (wake != null) {
-      final bed = await DatabaseHelper.instance.mostRecentBedBefore(wake.timestamp);
+      final bed =
+          await DatabaseHelper.instance.mostRecentBedBefore(wake.timestamp);
       if (bed != null) {
         sleep = wake.timestamp.difference(bed.timestamp);
       }
@@ -101,6 +108,7 @@ class DaySummary {
       tirzepatideMgTotal: tirzMg,
       tirzepatideMlTotal: tirzMl,
       pillTotals: pillTotals,
+      gacMlTotal: gacMl,
     );
   }
 }
@@ -150,7 +158,8 @@ Future<void> showDaySummarySheet(
                   summary.sleepDuration == null
                       ? '—'
                       : _formatDuration(summary.sleepDuration!)),
-              if (summary.tirzepatideMgTotal > 0 || summary.tirzepatideMlTotal > 0)
+              if (summary.tirzepatideMgTotal > 0 ||
+                  summary.tirzepatideMlTotal > 0)
                 _statRow(
                     ctx,
                     Icons.vaccines,
@@ -169,6 +178,9 @@ Future<void> showDaySummarySheet(
                     summary.pillTotals.entries
                         .map((e) => '${e.value} ${e.key}')
                         .join(', ')),
+              if (summary.gacMlTotal > 0)
+                _statRow(ctx, Icons.science, 'GAC',
+                    '${formatNum(summary.gacMlTotal)} ml'),
               const SizedBox(height: 12),
               Text(
                 'Estimated calories: meals use a rough guide from logged '
@@ -191,7 +203,8 @@ String _formatDuration(Duration d) {
   return '${h}h ${m}m';
 }
 
-Widget _statRow(BuildContext context, IconData icon, String label, String value) {
+Widget _statRow(
+    BuildContext context, IconData icon, String label, String value) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
     child: Row(

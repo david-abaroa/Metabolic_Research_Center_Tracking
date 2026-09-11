@@ -27,7 +27,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'timeline.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE entries (
@@ -44,7 +44,8 @@ class DatabaseHelper {
             calories REAL,
             tirzepatide_dose REAL,
             tirzepatide_unit TEXT,
-            pills_json TEXT
+            pills_json TEXT,
+            gac_ml REAL
           )
         ''');
         await db.execute('''
@@ -67,7 +68,8 @@ class DatabaseHelper {
             protein_drink_calories REAL,
             protein_drink_protein_grams REAL,
             tirzepatide_unit TEXT,
-            tirzepatide_dose REAL
+            tirzepatide_dose REAL,
+            gac_default_ml REAL
           )
         ''');
         await db.execute('''
@@ -96,11 +98,15 @@ class DatabaseHelper {
           ''');
         }
         if (oldVersion < 4) {
-          await db.execute('ALTER TABLE entries ADD COLUMN tirzepatide_dose REAL');
-          await db.execute('ALTER TABLE entries ADD COLUMN tirzepatide_unit TEXT');
+          await db
+              .execute('ALTER TABLE entries ADD COLUMN tirzepatide_dose REAL');
+          await db
+              .execute('ALTER TABLE entries ADD COLUMN tirzepatide_unit TEXT');
           await db.execute('ALTER TABLE entries ADD COLUMN pills_json TEXT');
-          await db.execute('ALTER TABLE settings ADD COLUMN tirzepatide_unit TEXT');
-          await db.execute('ALTER TABLE settings ADD COLUMN tirzepatide_dose REAL');
+          await db
+              .execute('ALTER TABLE settings ADD COLUMN tirzepatide_unit TEXT');
+          await db
+              .execute('ALTER TABLE settings ADD COLUMN tirzepatide_dose REAL');
           await db.execute('''
             CREATE TABLE pill_types (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,13 +116,19 @@ class DatabaseHelper {
           ''');
           await _seedDefaultPillTypes(db);
         }
+        if (oldVersion < 5) {
+          await db.execute('ALTER TABLE entries ADD COLUMN gac_ml REAL');
+          await db
+              .execute('ALTER TABLE settings ADD COLUMN gac_default_ml REAL');
+        }
       },
     );
   }
 
   Future<void> _seedDefaultPillTypes(Database db) async {
     for (final p in _defaultPillTypes) {
-      await db.insert('pill_types', p, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert('pill_types', p,
+          conflictAlgorithm: ConflictAlgorithm.ignore);
     }
   }
 
@@ -144,6 +156,8 @@ class DatabaseHelper {
         dose: (r['tirzepatide_dose'] as num?)?.toDouble() ??
             AppSettings.defaults.tirzepatide.dose,
       ),
+      gacDefaultMl: (r['gac_default_ml'] as num?)?.toDouble() ??
+          AppSettings.defaults.gacDefaultMl,
     );
   }
 
@@ -159,6 +173,7 @@ class DatabaseHelper {
         'protein_drink_protein_grams': settings.proteinDrink.proteinGrams,
         'tirzepatide_unit': settings.tirzepatide.unit,
         'tirzepatide_dose': settings.tirzepatide.dose,
+        'gac_default_ml': settings.gacDefaultMl,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );

@@ -10,7 +10,8 @@ class OptimalWindow {
   const OptimalWindow(this.startMinutes, this.endMinutes);
 }
 
-double minutesSinceMidnight(DateTime t) => t.hour * 60.0 + t.minute + t.second / 60.0;
+double minutesSinceMidnight(DateTime t) =>
+    t.hour * 60.0 + t.minute + t.second / 60.0;
 
 double timeToY(DateTime t) => minutesSinceMidnight(t) / 60.0 * hourHeight;
 

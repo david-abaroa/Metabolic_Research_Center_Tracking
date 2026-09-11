@@ -71,6 +71,11 @@ Future<void> showAddEntrySheet(BuildContext context, VoidCallback onSaved,
                   await _showPillsForm(context, onSaved,
                       initialTime: initialTime);
                 }),
+                _optionTile(ctx, Icons.science, Colors.teal, 'GAC', () async {
+                  Navigator.pop(ctx);
+                  await _showGacForm(context, onSaved,
+                      initialTime: initialTime);
+                }),
                 _optionTile(ctx, Icons.bedtime, Colors.indigo, 'Bed time',
                     () async {
                   Navigator.pop(ctx);
@@ -108,6 +113,9 @@ Future<void> showEntryDetailSheet(
       return;
     case EntryType.pills:
       await _showPillsForm(context, onSaved, existing: entry);
+      return;
+    case EntryType.gac:
+      await _showGacForm(context, onSaved, existing: entry);
       return;
     case EntryType.wake:
     case EntryType.bed:
@@ -890,6 +898,129 @@ Future<void> _showTirzepatideForm(BuildContext context, VoidCallback onSaved,
                         Navigator.pop(ctx);
                       },
                       child: const Text('Save Tirzepatide'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      });
+    },
+  );
+}
+
+/// Add/edit sheet for GAC — pre-filled from the saved default (ml) (see
+/// Settings), with a "Change values" toggle to override the amount for
+/// just this entry.
+Future<void> _showGacForm(BuildContext context, VoidCallback onSaved,
+    {TimelineEntry? existing, TimeOfDay? initialTime}) async {
+  final settings = await DatabaseHelper.instance.getSettings();
+  final defaultMl = settings.gacDefaultMl;
+
+  if (!context.mounted) return;
+
+  TimeOfDay time = existing != null
+      ? TimeOfDay.fromDateTime(existing.timestamp)
+      : (initialTime ?? TimeOfDay.now());
+  double ml = existing?.gacMl ?? defaultMl;
+  bool customizing = existing != null && existing.gacMl != defaultMl;
+  final mlCtrl = TextEditingController(text: formatNum(ml));
+
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, setState) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(existing == null ? 'Add GAC' : 'Edit GAC',
+                  style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Time: ${time.format(ctx)}'),
+                trailing: const Icon(Icons.access_time),
+                onTap: () async {
+                  final t = await _pickTime(context, initial: time);
+                  if (t != null) setState(() => time = t);
+                },
+              ),
+              const SizedBox(height: 8),
+              if (!customizing) ...[
+                Text(
+                  '${formatNum(ml)} ml (default)',
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Change values'),
+                    onPressed: () => setState(() => customizing = true),
+                  ),
+                ),
+              ] else ...[
+                TextField(
+                  controller: mlCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Amount (ml)'),
+                  onChanged: (v) => ml = double.tryParse(v) ?? ml,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () => setState(() {
+                      customizing = false;
+                      ml = defaultMl;
+                      mlCtrl.text = formatNum(ml);
+                    }),
+                    child: const Text('Reset to default'),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (existing != null) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Delete'),
+                        onPressed: () =>
+                            _deleteAndClose(ctx, existing.id!, onSaved),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        final entry = TimelineEntry(
+                          id: existing?.id,
+                          type: EntryType.gac,
+                          timestamp: _combineToday(time),
+                          gacMl: ml,
+                        );
+                        if (existing == null) {
+                          await DatabaseHelper.instance.insertEntry(entry);
+                        } else {
+                          await DatabaseHelper.instance.updateEntry(entry);
+                        }
+                        onSaved();
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Save GAC'),
                     ),
                   ),
                 ],

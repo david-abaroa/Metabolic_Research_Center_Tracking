@@ -11,6 +11,7 @@ enum EntryType {
   water,
   tirzepatide,
   pills,
+  gac,
 }
 
 class TimelineEntry {
@@ -42,6 +43,9 @@ class TimelineEntry {
   // Pills-specific
   final List<PillDose>? pills;
 
+  // GAC-specific
+  final double? gacMl;
+
   TimelineEntry({
     this.id,
     required this.type,
@@ -57,6 +61,7 @@ class TimelineEntry {
     this.tirzepatideDose,
     this.tirzepatideUnit,
     this.pills,
+    this.gacMl,
   });
 
   /// True for entry types after which there's an optimal 3-4hr window to
@@ -81,6 +86,7 @@ class TimelineEntry {
     double? tirzepatideDose,
     String? tirzepatideUnit,
     List<PillDose>? pills,
+    double? gacMl,
   }) {
     return TimelineEntry(
       id: id ?? this.id,
@@ -97,6 +103,7 @@ class TimelineEntry {
       tirzepatideDose: tirzepatideDose ?? this.tirzepatideDose,
       tirzepatideUnit: tirzepatideUnit ?? this.tirzepatideUnit,
       pills: pills ?? this.pills,
+      gacMl: gacMl ?? this.gacMl,
     );
   }
 
@@ -115,8 +122,10 @@ class TimelineEntry {
       'calories': calories,
       'tirzepatide_dose': tirzepatideDose,
       'tirzepatide_unit': tirzepatideUnit,
-      'pills_json':
-          pills == null ? null : jsonEncode(pills!.map((p) => p.toJson()).toList()),
+      'pills_json': pills == null
+          ? null
+          : jsonEncode(pills!.map((p) => p.toJson()).toList()),
+      'gac_ml': gacMl,
     };
   }
 
@@ -141,6 +150,7 @@ class TimelineEntry {
           : (jsonDecode(pillsJson) as List)
               .map((e) => PillDose.fromJson(e as Map<String, dynamic>))
               .toList(),
+      gacMl: (map['gac_ml'] as num?)?.toDouble(),
     );
   }
 }

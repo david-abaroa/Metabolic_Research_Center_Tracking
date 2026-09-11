@@ -15,13 +15,13 @@ const Map<EntryType, EntryStyle> entryStyles = {
       EntryStyle(Icons.local_drink, Colors.blue, 'Protein drink'),
   EntryType.proteinBar: EntryStyle(Icons.icecream, Colors.brown, 'Protein bar'),
   EntryType.meal: EntryStyle(Icons.restaurant, Colors.green, 'Meal'),
-  EntryType.exercise:
-      EntryStyle(Icons.directions_run, Colors.red, 'Exercise'),
+  EntryType.exercise: EntryStyle(Icons.directions_run, Colors.red, 'Exercise'),
   EntryType.bed: EntryStyle(Icons.bedtime, Colors.indigo, 'Bed time'),
   EntryType.water: EntryStyle(Icons.water_drop, Colors.cyan, 'Water'),
   EntryType.tirzepatide:
       EntryStyle(Icons.vaccines, Colors.deepPurple, 'Tirzepatide'),
   EntryType.pills: EntryStyle(Icons.medication, Colors.pink, 'Pills'),
+  EntryType.gac: EntryStyle(Icons.science, Colors.teal, 'GAC'),
 };
 
 String entrySubtitle(TimelineEntry entry) {
@@ -60,6 +60,9 @@ String entrySubtitle(TimelineEntry entry) {
     case EntryType.pills:
       if (entry.pills == null || entry.pills!.isEmpty) return 'None taken';
       return entry.pills!.map((p) => '${p.count} ${p.name}').join(', ');
+    case EntryType.gac:
+      final ml = entry.gacMl?.toStringAsFixed(0) ?? '?';
+      return '$ml ml';
     default:
       return '';
   }
