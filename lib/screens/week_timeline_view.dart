@@ -9,9 +9,9 @@ import '../widgets/tirz_gac_badge.dart';
 
 const double _gutterWidth = 92.0;
 const double _headerHeight = 24.0;
-const double _rowHeight = 42.0;
+const double _rowHeight = 52.0;
 const double _rowVPad = 4.0;
-const double _iconSize = 20.0;
+const double _iconSize = 18.0;
 
 /// The default (zoomed-in) window the grid opens scrolled to — you can
 /// still scroll left/right to see the rest of the day.
@@ -257,7 +257,13 @@ class _WeekTimelineViewState extends State<WeekTimelineView> {
                   left: (minutesSinceMidnight(e.timestamp) / 60 * pxPerHour -
                           _iconSize / 2)
                       .clamp(0.0, totalWidth - _iconSize),
-                  top: (_rowHeight - _iconSize) / 2,
+                  // Protein drinks/bars float in the upper lane, everything
+                  // else sits in the lower lane.
+                  top: (e.type == EntryType.proteinDrink ||
+                              e.type == EntryType.proteinBar
+                          ? _rowHeight * 0.25
+                          : _rowHeight * 0.75) -
+                      _iconSize / 2,
                   child: GestureDetector(
                     onTap: () async {
                       await showEntryDetailSheet(context, e, _load);
